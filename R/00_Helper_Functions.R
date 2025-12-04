@@ -432,6 +432,228 @@ dataDownload <- function(type, year, month = NULL, dir, varname, quiet = TRUE) {
 
 
 
+# 
+# extractWz <- function(df,
+#                       X,
+#                       Y,
+#                       datetime,
+#                       folder_name,                 # directory with files like ocean_w_YYYY_MM.nc
+#                       export_path = NULL,
+#                       max_depth = -200,
+#                       fill_gaps = TRUE,
+#                       buffer = 10000,             # metres (geodesic with s2)
+#                       verbose = TRUE,
+#                       export_step = TRUE) {
+#   
+#   # ---- checks ---------------------------------------------------------------
+#   if (!dir.exists(folder_name)) {
+#     base::stop(base::sprintf("NetCDF directory not found: %s", folder_name), call. = FALSE)
+#   }
+#   if (!("Depth" %in% base::names(df))) {
+#     base::warning("Depth column not found; returning input df unchanged.")
+#     return(df)
+#   }
+#   
+#   # clamp depths and prepare aux.date (YYYY-MM)
+#   df <- df |>
+#     dplyr::mutate(
+#       Depth_Wz = base::ifelse(Depth > -5, -6, base::ifelse(Depth < max_depth, max_depth, Depth)),
+#       Depth_Wz = base::round(Depth_Wz, 1),
+#       aux.date = base::substr(base::as.character(.data[[datetime]]), 1, 7)
+#     )
+#   
+#   if ("Wz" %in% base::names(df)) {
+#     if (verbose) base::message("Previous Wz values found. Continuing only for rows with NA Wz...")
+#     dates <- base::unique(df$aux.date[base::is.na(df$Wz)])
+#   } else {
+#     df$Wz <- base::as.numeric(NA)
+#     dates <- base::unique(df$aux.date)
+#   }
+#   if (base::length(dates) == 0L) {
+#     if (verbose) base::message("Nothing to do (no dates needing computation).")
+#     return(df |> dplyr::select(-.data$aux.date))
+#   }
+#   
+#   # helper: read time origin/units from NC and convert offsets to POSIXct
+#   .read_nc_time_info <- function(nc_path) {
+#     nc <- ncdf4::nc_open(nc_path)
+#     on.exit(ncdf4::nc_close(nc), add = TRUE)
+#     
+#     # pick a plausible time dim name
+#     time_name <- base::intersect(base::names(nc$dim), c("Time", "time", "TIME"))
+#     if (base::length(time_name) == 0L) time_name <- "time"
+#     
+#     units_att <- try(ncdf4::ncatt_get(nc, time_name, "units")$value, silent = TRUE)
+#     if (base::inherits(units_att, "try-error") || base::is.null(units_att)) units_att <- ""
+#     
+#     list(units = units_att)
+#   }
+#   
+#   .convert_offsets_to_datetime <- function(offset_numeric, units_att) {
+#     # units like "days since 1990-01-01 00:00:00" or "hours since 1979-01-01"
+#     if (!base::grepl("since", units_att, ignore.case = TRUE)) {
+#       # fallback: treat as days since 1979-01-01 (common for BRAN/Bluelink)
+#       origin <- base::as.POSIXct("1979-01-01 00:00:00", tz = "UTC")
+#       return(origin + base::as.difftime(offset_numeric, units = "days"))
+#     }
+#     unit_part <- base::tolower(base::sub(" since .*", "", units_att))
+#     origin_str <- base::sub(".*since\\s+", "", units_att)
+#     origin     <- base::as.POSIXct(origin_str, tz = "UTC")
+#     if (base::is.na(origin)) origin <- base::as.POSIXct(base::paste0(origin_str, " 00:00:00"), tz = "UTC")
+#     
+#     if (unit_part %in% c("day", "days")) {
+#       origin + base::as.difftime(offset_numeric, units = "days")
+#     } else if (unit_part %in% c("hour", "hours")) {
+#       origin + base::as.difftime(offset_numeric, units = "hours")
+#     } else if (unit_part %in% c("sec", "second", "seconds")) {
+#       origin + base::as.difftime(offset_numeric, units = "secs")
+#     } else {
+#       # unknown unit → assume days
+#       origin + base::as.difftime(offset_numeric, units = "days")
+#     }
+#   }
+#   
+#   # progress bar
+#   if (verbose) {
+#     base::message("Processing Wz from existing NetCDF files...")
+#     pb <- utils::txtProgressBar(min = 0, max = base::length(dates), initial = 0, style = 3, width = 60)
+#   }
+#   
+#   # main loop over months present in df
+#   for (i in base::seq_along(dates)) {
+#     aux.date <- dates[i]
+#     yyyy <- base::substr(aux.date, 1, 4)
+#     mm   <- base::substr(aux.date, 6, 7)
+#     
+#     nc_file <- base::file.path(folder_name, base::sprintf("ocean_w_%s_%s.nc", yyyy, mm))
+#     if (!base::file.exists(nc_file)) {
+#       base::stop(base::sprintf("Missing NetCDF for %s: %s", aux.date, nc_file), call. = FALSE)
+#     }
+#     
+#     # read NC as SpatRaster
+#     nc.bran <- terra::rast(nc_file)
+#     
+#     # parse depth & raw time offsets from layer names: "w_sw_ocean=X_Time=Y"
+#     nm <- terra::names(nc.bran) |>
+#       stringr::str_remove("w_sw_ocean=") |>
+#       stringr::str_remove("Time=") |>
+#       stringr::str_split("_")
+#     
+#     aux.depth <- base::numeric(0)
+#     aux.time  <- base::numeric(0)
+#     for (k in base::seq_along(nm)) {
+#       aux.depth <- base::c(aux.depth, base::as.numeric(nm[[k]][1]))
+#       aux.time  <- base::c(aux.time,  base::as.numeric(nm[[k]][2]))
+#     }
+#     
+#     # read time units/origin from the file and convert offsets → POSIXct
+#     time_info <- .read_nc_time_info(nc_file)
+#     meta_time <- .convert_offsets_to_datetime(aux.time, time_info$units)
+#     
+#     # meta table: depth (negative down), time (POSIXct), plus layer index
+#     meta <- dplyr::tibble(
+#       Depth = -1 * aux.depth,
+#       Time  = meta_time,
+#       lyr   = base::seq_along(aux.depth)
+#     )
+#     
+#     # rows for this month
+#     idx_month <- base::which(df$aux.date == aux.date)
+#     
+#     for (ii in base::seq_along(idx_month)) {
+#       r <- idx_month[ii]
+#       dt_i <- base::as.Date(df[[datetime]][r])
+#       
+#       # match by calendar day (ignore time-of-day in NC)
+#       sel <- meta |>
+#         dplyr::filter(base::as.Date(.data$Time) == dt_i)
+#       
+#       if (nrow(sel) == 0L) {
+#         # no matching time slice → 0
+#         df$Wz[r] <- 0
+#         next
+#       }
+#       
+#       # keep layers down to local bottom (Depth_Wz is negative)
+#       sel <- sel |>
+#         dplyr::filter(.data$Depth >= df$Depth_Wz[r])
+#       
+#       if (nrow(sel) == 0L) {
+#         df$Wz[r] <- 0
+#         next
+#       }
+#       
+#       # sort shallow (near 0) → deeper (more negative)
+#       sel <- sel |> dplyr::arrange(dplyr::desc(.data$Depth))
+#       
+#       # extract W at each retained layer
+#       sel$W <- NA_real_
+#       for (jj in base::seq_len(nrow(sel))) {
+#         aux.layer <- nc.bran[[sel$lyr[jj]]]
+#         
+#         # point extract
+#         val <- terra::extract(x = aux.layer, y = df[r, c(X, Y)])[1, 2]
+#         
+#         # gap-fill via buffer (geodesic metres with s2)
+#         if (base::is.na(val) && fill_gaps) {
+#           pos_sf <- df[r, c(X, Y)] |>
+#             sf::st_as_sf(coords = base::c(1, 2), crs = 4326, remove = FALSE) 
+#           
+#           # Silence "dist is assumed to be in decimal degrees (arc_degrees)." message
+#           pos_sf <- suppressMessages(sf::st_buffer(pos_sf, buffer))
+#           
+#           buf_vals <- terra::extract(x = aux.layer, y = pos_sf)
+#           if (base::is.data.frame(buf_vals) && base::ncol(buf_vals) >= 2) {
+#             base::names(buf_vals)[2] <- "Buffer"
+#             val <- buf_vals |>
+#               dplyr::group_by(.data$ID) |>
+#               dplyr::summarise(Buffer_mean = base::mean(.data$Buffer, na.rm = TRUE)) |>
+#               dplyr::pull(.data$Buffer_mean)
+#             if (base::is.nan(val)) val <- NA_real_
+#           }
+#         }
+#         
+#         sel$W[jj] <- val
+#       }
+#       
+#       # layer thickness (positive metres)
+#       sel$Height <- NA_real_
+#       for (jj in base::seq_len(nrow(sel))) {
+#         if (jj == 1L) {
+#           sel$Height[jj] <- 0 - sel$Depth[jj]            # from surface (0) to first layer
+#         } else {
+#           sel$Height[jj] <- sel$Depth[jj - 1] - sel$Depth[jj]  # delta between layers (Depth is negative)
+#         }
+#       }
+#       
+#       # weighted mean upward velocity
+#       if (base::all(base::is.na(sel$W)) || base::sum(sel$Height, na.rm = TRUE) == 0) {
+#         aux.wz <- 0
+#       } else {
+#         sel$Each <- sel$W * sel$Height
+#         aux.wz <- base::sum(sel$Each, na.rm = TRUE) / base::sum(sel$Height, na.rm = TRUE)
+#         if (base::is.na(aux.wz)) aux.wz <- 0
+#       }
+#       
+#       df$Wz[r] <- aux.wz
+#       # base::gc()
+#     }
+#     
+#     if (base::isTRUE(export_step) && !base::is.null(export_path)) {
+#       utils::write.csv(df |> dplyr::select(-.data$aux.date),
+#                        base::paste0(export_path, ".csv"),
+#                        row.names = FALSE)
+#     }
+#     
+#     if (verbose) utils::setTxtProgressBar(pb, i)
+#   }
+#   
+#   if (verbose) base::close(pb)
+#   df |> dplyr::select(-.data$aux.date)
+# }
+
+
+
 
 extractWz <- function(df,
                       X,
@@ -446,13 +668,49 @@ extractWz <- function(df,
                       export_step = TRUE) {
   
   # ---- checks ---------------------------------------------------------------
-  if (!dir.exists(folder_name)) {
+  if (!base::dir.exists(folder_name)) {
     base::stop(base::sprintf("NetCDF directory not found: %s", folder_name), call. = FALSE)
   }
   if (!("Depth" %in% base::names(df))) {
     base::warning("Depth column not found; returning input df unchanged.")
     return(df)
   }
+  
+  
+  # helpers for reading NC time units and converting offsets -> POSIXct
+  .read_nc_time_info <- function(nc_path) {
+    nc <- ncdf4::nc_open(nc_path)
+    on.exit(ncdf4::nc_close(nc), add = TRUE)
+    time_name <- base::intersect(base::names(nc$dim), c("Time", "time", "TIME"))
+    if (base::length(time_name) == 0L) time_name <- "time"
+    units_att <- try(ncdf4::ncatt_get(nc, time_name, "units")$value, silent = TRUE)
+    if (base::inherits(units_att, "try-error") || base::is.null(units_att)) units_att <- ""
+    list(units = units_att)
+  }
+  
+  .convert_offsets_to_datetime <- function(offset_numeric, units_att) {
+    # examples: "days since 1990-01-01 00:00:00", "hours since 1979-01-01"
+    if (!base::grepl("since", units_att, ignore.case = TRUE)) {
+      origin <- base::as.POSIXct("1979-01-01 00:00:00", tz = "UTC")
+      return(origin + base::as.difftime(offset_numeric, units = "days"))
+    }
+    unit_part <- base::tolower(base::sub(" since .*", "", units_att))
+    origin_str <- base::sub(".*since\\s+", "", units_att)
+    origin     <- base::as.POSIXct(origin_str, tz = "UTC")
+    if (base::is.na(origin)) origin <- base::as.POSIXct(base::paste0(origin_str, " 00:00:00"), tz = "UTC")
+    
+    if (unit_part %in% c("day", "days")) {
+      origin + base::as.difftime(offset_numeric, units = "days")
+    } else if (unit_part %in% c("hour", "hours")) {
+      origin + base::as.difftime(offset_numeric, units = "hours")
+    } else if (unit_part %in% c("sec", "second", "seconds")) {
+      origin + base::as.difftime(offset_numeric, units = "secs")
+    } else {
+      origin + base::as.difftime(offset_numeric, units = "days")
+    }
+  }
+  
+  
   
   # clamp depths and prepare aux.date (YYYY-MM)
   df <- df |>
@@ -472,45 +730,6 @@ extractWz <- function(df,
   if (base::length(dates) == 0L) {
     if (verbose) base::message("Nothing to do (no dates needing computation).")
     return(df |> dplyr::select(-.data$aux.date))
-  }
-  
-  # helper: read time origin/units from NC and convert offsets to POSIXct
-  .read_nc_time_info <- function(nc_path) {
-    nc <- ncdf4::nc_open(nc_path)
-    on.exit(ncdf4::nc_close(nc), add = TRUE)
-    
-    # pick a plausible time dim name
-    time_name <- base::intersect(base::names(nc$dim), c("Time", "time", "TIME"))
-    if (base::length(time_name) == 0L) time_name <- "time"
-    
-    units_att <- try(ncdf4::ncatt_get(nc, time_name, "units")$value, silent = TRUE)
-    if (base::inherits(units_att, "try-error") || base::is.null(units_att)) units_att <- ""
-    
-    list(units = units_att)
-  }
-  
-  .convert_offsets_to_datetime <- function(offset_numeric, units_att) {
-    # units like "days since 1990-01-01 00:00:00" or "hours since 1979-01-01"
-    if (!base::grepl("since", units_att, ignore.case = TRUE)) {
-      # fallback: treat as days since 1979-01-01 (common for BRAN/Bluelink)
-      origin <- base::as.POSIXct("1979-01-01 00:00:00", tz = "UTC")
-      return(origin + base::as.difftime(offset_numeric, units = "days"))
-    }
-    unit_part <- base::tolower(base::sub(" since .*", "", units_att))
-    origin_str <- base::sub(".*since\\s+", "", units_att)
-    origin     <- base::as.POSIXct(origin_str, tz = "UTC")
-    if (base::is.na(origin)) origin <- base::as.POSIXct(base::paste0(origin_str, " 00:00:00"), tz = "UTC")
-    
-    if (unit_part %in% c("day", "days")) {
-      origin + base::as.difftime(offset_numeric, units = "days")
-    } else if (unit_part %in% c("hour", "hours")) {
-      origin + base::as.difftime(offset_numeric, units = "hours")
-    } else if (unit_part %in% c("sec", "second", "seconds")) {
-      origin + base::as.difftime(offset_numeric, units = "secs")
-    } else {
-      # unknown unit → assume days
-      origin + base::as.difftime(offset_numeric, units = "days")
-    }
   }
   
   # progress bar
@@ -533,75 +752,58 @@ extractWz <- function(df,
     # read NC as SpatRaster
     nc.bran <- terra::rast(nc_file)
     
-    # parse depth & raw time offsets from layer names: "w_sw_ocean=X_Time=Y"
-    nm <- terra::names(nc.bran) |>
-      stringr::str_remove("w_sw_ocean=") |>
-      stringr::str_remove("Time=") |>
-      stringr::str_split("_")
+    nm <- terra::names(nc.bran)
     
-    aux.depth <- base::numeric(0)
-    aux.time  <- base::numeric(0)
-    for (k in base::seq_along(nm)) {
-      aux.depth <- base::c(aux.depth, base::as.numeric(nm[[k]][1]))
-      aux.time  <- base::c(aux.time,  base::as.numeric(nm[[k]][2]))
-    }
+    nm_mat <- stringr::str_split_fixed(
+      nm |>
+        stringr::str_remove("^w_sw_ocean=") |>
+        stringr::str_replace("_Time=", "_"),
+      pattern = "_",
+      n = 2
+    )
     
-    # read time units/origin from the file and convert offsets → POSIXct
+    aux.depth <- base::as.numeric(nm_mat[, 1])   # one depth per layer
+    aux.time  <- base::as.numeric(nm_mat[, 2])   # one time-offset per layer
+    
+    # same helpers as before (keep them in your function)
     time_info <- .read_nc_time_info(nc_file)
     meta_time <- .convert_offsets_to_datetime(aux.time, time_info$units)
     
-    # meta table: depth (negative down), time (POSIXct), plus layer index
+    # meta table: depth (negative down), POSIXct time, day, and exact layer index
     meta <- dplyr::tibble(
       Depth = -1 * aux.depth,
       Time  = meta_time,
-      lyr   = base::seq_along(aux.depth)
+      Date  = base::as.Date(meta_time),
+      lyr   = base::seq_along(aux.depth)  # <- exact layer ids in nc.bran
     )
-    
     # rows for this month
-    idx_month <- base::which(df$aux.date == aux.date)
+    idx_month <- which(df$aux.date == aux.date)
     
     for (ii in base::seq_along(idx_month)) {
       r <- idx_month[ii]
       dt_i <- base::as.Date(df[[datetime]][r])
       
-      # match by calendar day (ignore time-of-day in NC)
-      sel <- meta |>
-        dplyr::filter(base::as.Date(.data$Time) == dt_i)
-      
-      if (nrow(sel) == 0L) {
-        # no matching time slice → 0
-        df$Wz[r] <- 0
-        next
-      }
+      # match by calendar day (ignore time-of-day in NC); base subset is lighter
+      sel <- meta[meta$Date == dt_i, , drop = FALSE]
+      if (!base::nrow(sel)) { df$Wz[r] <- 0; next }
       
       # keep layers down to local bottom (Depth_Wz is negative)
-      sel <- sel |>
-        dplyr::filter(.data$Depth >= df$Depth_Wz[r])
-      
-      if (nrow(sel) == 0L) {
-        df$Wz[r] <- 0
-        next
-      }
+      sel <- sel[sel$Depth >= df$Depth_Wz[r], , drop = FALSE]
+      if (!base::nrow(sel)) { df$Wz[r] <- 0; next }
       
       # sort shallow (near 0) → deeper (more negative)
-      sel <- sel |> dplyr::arrange(dplyr::desc(.data$Depth))
+      sel <- sel[base::order(sel$Depth, decreasing = TRUE), , drop = FALSE]
       
-      # extract W at each retained layer
-      sel$W <- NA_real_
-      for (jj in base::seq_len(nrow(sel))) {
+      # extract W at each retained layer (unchanged behaviour; per-layer, with optional buffer)
+      Wvals <- base::rep(NA_real_, base::nrow(sel))
+      for (jj in base::seq_len(base::nrow(sel))) {
         aux.layer <- nc.bran[[sel$lyr[jj]]]
-        
-        # point extract
         val <- terra::extract(x = aux.layer, y = df[r, c(X, Y)])[1, 2]
         
-        # gap-fill via buffer (geodesic metres with s2)
         if (base::is.na(val) && fill_gaps) {
           pos_sf <- df[r, c(X, Y)] |>
-            sf::st_as_sf(coords = base::c(1, 2), crs = 4326, remove = FALSE) 
-          
-          # Silence "dist is assumed to be in decimal degrees (arc_degrees)." message
+            sf::st_as_sf(coords = base::c(1, 2), crs = 4326, remove = FALSE)
           pos_sf <- suppressMessages(sf::st_buffer(pos_sf, buffer))
-          
           buf_vals <- terra::extract(x = aux.layer, y = pos_sf)
           if (base::is.data.frame(buf_vals) && base::ncol(buf_vals) >= 2) {
             base::names(buf_vals)[2] <- "Buffer"
@@ -612,31 +814,23 @@ extractWz <- function(df,
             if (base::is.nan(val)) val <- NA_real_
           }
         }
-        
-        sel$W[jj] <- val
+        Wvals[jj] <- val
       }
       
-      # layer thickness (positive metres)
-      sel$Height <- NA_real_
-      for (jj in base::seq_len(nrow(sel))) {
-        if (jj == 1L) {
-          sel$Height[jj] <- 0 - sel$Depth[jj]            # from surface (0) to first layer
-        } else {
-          sel$Height[jj] <- sel$Depth[jj - 1] - sel$Depth[jj]  # delta between layers (Depth is negative)
-        }
-      }
+      # layer thickness (vectorised; same result as your loop)
+      Height <- base::c(0 - sel$Depth[1], sel$Depth[-base::nrow(sel)] - sel$Depth[-1])
       
-      # weighted mean upward velocity
-      if (base::all(base::is.na(sel$W)) || base::sum(sel$Height, na.rm = TRUE) == 0) {
+      # weighted mean upward velocity (unchanged semantics)
+      if (base::all(base::is.na(Wvals)) || base::sum(Height, na.rm = TRUE) == 0) {
         aux.wz <- 0
       } else {
-        sel$Each <- sel$W * sel$Height
-        aux.wz <- base::sum(sel$Each, na.rm = TRUE) / base::sum(sel$Height, na.rm = TRUE)
+        Each   <- Wvals * Height
+        aux.wz <- base::sum(Each, na.rm = TRUE) / base::sum(Height, na.rm = TRUE)
         if (base::is.na(aux.wz)) aux.wz <- 0
       }
-      
       df$Wz[r] <- aux.wz
-      base::gc()
+      
+      # NOTE: removed base::gc() here (CM version doesn’t do per-row GC)
     }
     
     if (base::isTRUE(export_step) && !base::is.null(export_path)) {
@@ -786,6 +980,119 @@ extractWz_CM <- function(df, X, Y, datetime, bathy_path, folder_name, export_pat
     invisible(file.remove(folder_name))
   return(df)
 }
+
+
+
+
+create_monthly_rasters_from_files_CM <- function(nc_folder, desired_depth, reference_raster = NULL, output_path, output_filename, start_date = NULL) {
+  
+  # Function to process auxiliary data from nc file
+  process_aux_data_CM <- function(nc_file) {
+    # Load the NetCDF file
+    nc_CM <- terra::rast(nc_file)
+    gc()  # Garbage collection to free up memory
+    
+    # Extract and process variable names
+    aux_names <- stringr::str_remove(names(nc_CM), pattern = "wo_depth=")
+    aux_names <- stringr::str_split(aux_names, pattern = "_")
+    
+    aux_depth <- NULL
+    aux_time <- NULL
+    for (i in 1:length(aux_names)) {
+      aux_depth <- c(aux_depth, aux_names[[i]][1])
+      aux_time <- c(aux_time, aux_names[[i]][2])
+    }
+    
+    aux_names_df <- data.frame(Depth = as.numeric(aux_depth), Time = as.numeric(aux_time))
+    
+    # ---- start_date handling (no structural changes elsewhere) ----
+    # If start_date is NULL, keep original origin of "2024-01-16"
+    origin <- if (is.null(start_date)) as.Date("2024-01-16", tz = "UTC") else as.Date(start_date, tz = "UTC")
+    idx <- as.integer(aux_names_df$Time)  # 1,2,3,... month indices
+    date_seq <- seq.Date(from = origin, by = "1 month", length.out = max(idx, na.rm = TRUE))
+    aux_names_df$Time <- date_seq[idx]
+    # ----------------------------------------------------------------
+    
+    gc()  # Garbage collection to free up memory before returning
+    return(aux_names_df)
+  }
+  
+  # List all NetCDF files in the directory
+  nc_files <- list.files(nc_folder, pattern = "\\.nc$", full.names = TRUE)
+  if (length(nc_files) == 0) {
+    stop("No NetCDF files found in the specified folder.")
+  }
+  
+  all_layers <- list()
+  available_depths <- NULL
+  
+  for (nc_file in nc_files) {
+    message(paste("Processing file:", nc_file))
+    aux_data <- process_aux_data_CM(nc_file)
+    available_depths <- unique(c(available_depths, aux_data$Depth))
+  }
+  
+  # Find the nearest available depth
+  differences <- abs(available_depths - desired_depth)
+  nearest_depth <- available_depths[which.min(differences)]
+  message(paste("Nearest available depth layer selected:", nearest_depth))
+  
+  for (nc_file in nc_files) {
+    aux_data <- process_aux_data_CM(nc_file)
+    
+    # Filter by the nearest depth layer
+    depth_filter <- aux_data$Depth == nearest_depth
+    if (!any(depth_filter)) {
+      message(paste("No matching depth layer found in file:", nc_file))
+      next  # Skip this file if no layers match the specified depth
+    }
+    
+    filtered_data <- aux_data[depth_filter, ]
+    
+    # Load the NetCDF file and filter by the selected layers
+    nc_CM <- terra::rast(nc_file)
+    filtered_layers <- nc_CM[[which(depth_filter)]]
+    gc()  # Garbage collection to free up memory
+    
+    for (i in 1:nrow(filtered_data)) {
+      current_layer <- filtered_layers[[i]]
+      names(current_layer) <- as.character(filtered_data$Time[i])
+      all_layers <- c(all_layers, list(current_layer))
+      gc()  # Garbage collection to free up memory
+    }
+  }
+  
+  if (length(all_layers) == 0) {
+    stop("No layers were extracted. Please check the depth layer and NetCDF files.")
+  }
+  
+  combined_raster <- rast(all_layers)
+  
+  # Resample and crop the combined raster to match the reference raster if provided
+  if (!is.null(reference_raster)) {
+    combined_raster <- terra::resample(combined_raster, reference_raster)
+    combined_raster <- terra::crop(combined_raster, reference_raster)
+  }
+  
+  # Construct the full output file path with .tif extension
+  output_file <- file.path(output_path, paste0(output_filename, ".tif"))
+  
+  # Save the combined raster stack to the specified output file
+  terra::writeRaster(combined_raster, output_file, overwrite = TRUE)
+  message(paste("Saved combined raster stack to:", output_file))
+  
+  assign(output_filename, terra::rast(output_file), envir = .GlobalEnv)
+  
+  gc()
+}
+
+
+
+
+
+
+
+
 
 
 
@@ -1374,44 +1681,318 @@ patched_trainBRT <- function(data,
 
 
 
-patched_trainANN <- function(data,
-                             size,
-                             decay = 0,
-                             rang  = 0.7,
-                             maxit = 100) {
-  result <- SDMtune::SDMmodel(data = data)
+# patched_trainANN <- function(data,
+#                              size = 10,
+#                              decay = 0,
+#                              rang  = 0.7,
+#                              maxit = 100) {
+#   result <- SDMtune::SDMmodel(data = data)
+# 
+#   # One-hot encode factors (month etc.)
+#   X <- stats::model.matrix(~ . - 1, data = data@data)
+#   y <- data@pa
+# 
+#   # ---- GLOBAL class-balanced weights per subset ----
+#   pres <- sum(y == 1L); absn <- sum(y == 0L)
+#   w <- if (absn > 0) ifelse(y == 1L, 1, pres/absn) else rep(1, length(y))
+#   w[is.na(w)] <- 1
+#   w[w < 0] <- 0
+# 
+#   # ---- Compute required network size and set MaxNWts locally ----
+#   p <- ncol(X)
+#   needed  <- size * (p + 2) + 1L         # total params for 1-hidden-layer net
+#   MaxNWts <- max(1000L, as.integer(needed * 1.25))  # small safety margin
+#   MaxNWts <- min(MaxNWts, 5e6)           # hard cap to avoid silly values
+# 
+#   # Temporarily raise the global option, then restore on exit
+#   old_opts <- options(nnet.MaxNWts = MaxNWts)
+#   on.exit(options(old_opts), add = TRUE)
+# 
+#   utils::capture.output(
+#     mdl <- nnet::nnet(
+#       x = X, y = y, weights = w,
+#       size = size, decay = decay, rang = rang, maxit = maxit,
+#       entropy = TRUE, linout = FALSE, trace = FALSE,
+#       MaxNWts = MaxNWts   # pass explicitly too
+#     )
+#   )
+# 
+#   result@model <- SDMtune::ANN(
+#     size = size, decay = decay, rang = rang, maxit = maxit, model = mdl
+#   )
+#   result
+# }
+# 
+
+
+gam_cv <- function(dat,
+                   fid,
+                   fml,
+                   family     = binomial(link = "cloglog"),
+                   base_preds = NULL,        # predictors for VI
+                   re_term    = "s(id)") {   # RE term to exclude in type="terms"
   
-  # One-hot encode factors (month etc.)
-  X <- stats::model.matrix(~ . - 1, data = data@data)
-  y <- data@pa
+  kvals <- sort(unique(fid))
   
-  # ---- GLOBAL class-balanced weights per subset ----
-  pres <- sum(y == 1L); absn <- sum(y == 0L)
-  w <- if (absn > 0) ifelse(y == 1L, 1, pres/absn) else rep(1, length(y))
-  w[is.na(w)] <- 1
-  w[w < 0] <- 0
+  tss_at <- function(y, p, thr){
+    y <- as.integer(y == 1)
+    pred <- as.integer(p >= thr)
+    tp <- sum(pred == 1 & y == 1); tn <- sum(pred == 0 & y == 0)
+    fp <- sum(pred == 1 & y == 0); fn <- sum(pred == 0 & y == 1)
+    if ((tp + fn) == 0 || (tn + fp) == 0) return(NA_real_)
+    sens <- tp / (tp + fn); spec <- tn / (tn + fp)
+    sens + spec - 1
+  }
   
-  # ---- Compute required network size and set MaxNWts locally ----
-  p <- ncol(X)
-  needed  <- size * (p + 2) + 1L         # total params for 1-hidden-layer net
-  MaxNWts <- max(1000L, as.integer(needed * 1.25))  # small safety margin
-  MaxNWts <- min(MaxNWts, 5e6)           # hard cap to avoid silly values
+  ## omission rate at a given threshold
+  omission_rate <- function(y, p, thr){
+    y <- as.integer(y == 1)
+    pred <- as.integer(p >= thr)
+    tp <- sum(pred == 1 & y == 1); fn <- sum(pred == 0 & y == 1)
+    if ((tp + fn) == 0) return(NA_real_)
+    fn / (tp + fn)
+  }
   
-  # Temporarily raise the global option, then restore on exit
-  old_opts <- options(nnet.MaxNWts = MaxNWts)
-  on.exit(options(old_opts), add = TRUE)
+  ## continuous Boyce index (Hirzel-style)
+  boyce_index <- function(pred, pres, nbins = 20){
+    pred <- pred[is.finite(pred)]
+    pres <- pres[is.finite(pres)]
+    if (length(pred) < 2L || length(pres) < 2L) return(NA_real_)
+    
+    bks <- stats::quantile(pred, probs = seq(0, 1, length.out = nbins + 1),
+                           na.rm = TRUE)
+    bks[1] <- -Inf
+    bks[length(bks)] <- Inf
+    mids <- (bks[-1] + bks[-length(bks)]) / 2
+    
+    h_pres <- graphics::hist(pres, breaks = bks, plot = FALSE)
+    h_all  <- graphics::hist(pred, breaks = bks, plot = FALSE)
+    
+    P <- h_pres$counts
+    E <- h_all$counts
+    keep <- P > 0 & E > 0
+    if (sum(keep) < 2L) return(NA_real_)
+    
+    P <- P[keep] / sum(P[keep])
+    E <- E[keep] / sum(E[keep])
+    ratio <- P / E
+    mids  <- mids[keep]
+    
+    stats::cor(mids, ratio, method = "spearman")
+  }
   
-  utils::capture.output(
-    mdl <- nnet::nnet(
-      x = X, y = y, weights = w,
-      size = size, decay = decay, rang = rang, maxit = maxit,
-      entropy = TRUE, linout = FALSE, trace = FALSE,
-      MaxNWts = MaxNWts   # pass explicitly too
+  models  <- vector("list", length(kvals))
+  metrics <- vector("list", length(kvals))
+  
+  ## container for per-fold predictor importance (percent)
+  do_varimp <- !is.null(base_preds) && length(base_preds) > 0L
+  if (do_varimp) {
+    vi_mat <- matrix(NA_real_,
+                     nrow = length(kvals),
+                     ncol = length(base_preds),
+                     dimnames = list(kvals, base_preds))
+  }
+  
+  for (i in seq_along(kvals)){
+    k <- kvals[i]
+    tr_idx <- fid != k; te_idx <- fid == k
+    train  <- dat[tr_idx, , drop = FALSE]
+    test   <- dat[te_idx, , drop = FALSE]
+    
+    # class-balanced weights on TRAIN subset
+    train$w <- ifelse(train$PA == 1L, 1, 0.1)
+    
+    m <- mgcv::bam(
+      fml,
+      data    = train,
+      family  = family,
+      method  = "fREML",
+      control = mgcv::gam.control(maxit = 500, epsilon = 1e-5, nthreads = 6),
+      discrete = TRUE,
+      weights  = w,
+      na.action = na.fail,
+      select    = TRUE,
+      gamma     = 1
     )
-  )
+    
+    # predictions
+    p_tr <- stats::predict(m, newdata = train, type = "response")
+    p_te <- stats::predict(m, newdata = test,  type = "response")
+    
+    
+    # Miller calibration (train and test)
+    mc_tr <- modEvA::MillerCalib(
+      obs  = train$PA,
+      pred = p_tr,
+      plot = FALSE
+    )
+    
+    mc_te <- modEvA::MillerCalib(
+      obs  = test$PA,
+      pred = p_te,
+      plot = FALSE
+    )
+    
+    
+    # TRAIN metrics (AUC + best threshold by Youden)
+    tr_auc <- tryCatch(
+      as.numeric(pROC::roc(train$PA, p_tr, quiet = TRUE)$auc),
+      error = function(e) NA_real_
+    )
+    co_tr  <- tryCatch(
+      pROC::coords(
+        pROC::roc(train$PA, p_tr, quiet = TRUE),
+        x           = "best",
+        best.method = "youden",
+        ret         = c("threshold","sensitivity","specificity")
+      ),
+      error = function(e) c(threshold = NA, sensitivity = NA, specificity = NA)
+    )
+    thr_tr <- as.numeric(co_tr["threshold"])
+    tr_tss <- if (is.na(thr_tr)) NA_real_ else tss_at(train$PA, p_tr, thr_tr)
+    
+    ## omission rate (train) at train-optimal threshold
+    tr_omr <- if (is.na(thr_tr)) NA_real_ else
+      omission_rate(train$PA, p_tr, thr_tr)
+    
+    ## Boyce (train)
+    tr_boyce <- boyce_index(pred = p_tr, pres = p_tr[train$PA == 1L])
+    
+    # TEST metrics
+    te_auc <- tryCatch(
+      as.numeric(pROC::roc(test$PA, p_te, quiet = TRUE)$auc),
+      error = function(e) NA_real_
+    )
+    # (i) Test TSS at TRAIN-chosen threshold (proper CV) – not used in summary
+    te_tss_at_tr <- if (is.na(thr_tr)) NA_real_ else tss_at(test$PA, p_te, thr_tr)
+    # (ii) Test-optimal TSS
+    co_te  <- tryCatch(
+      pROC::coords(
+        pROC::roc(test$PA, p_te, quiet = TRUE),
+        x           = "best",
+        best.method = "youden",
+        ret         = c("threshold","sensitivity","specificity")
+      ),
+      error = function(e) c(threshold = NA, sensitivity = NA, specificity = NA)
+    )
+    te_tss_opt <- if (any(is.na(co_te))) NA_real_ else
+      as.numeric(co_te["sensitivity"] + co_te["specificity"] - 1)
+    
+    ## omission rate (test) at *test*-optimal threshold (consistent with test_tss)
+    te_omr <- if (any(is.na(co_te))) NA_real_ else
+      1 - as.numeric(co_te["sensitivity"])
+    
+    ## Boyce (test)
+    te_boyce <- boyce_index(pred = p_te, pres = p_te[test$PA == 1L])
+    
+    models[[i]] <- m
+    metrics[[i]] <- data.frame(
+      fold        = k,
+      train_auc   = tr_auc,
+      test_auc    = te_auc,
+      train_tss   = tr_tss,
+      test_tss    = te_tss_opt,   # test-optimised TSS
+      thr_train   = thr_tr,
+      train_omr   = tr_omr,
+      test_omr    = te_omr,
+      train_boyce = tr_boyce,
+      test_boyce  = te_boyce,
+      # Miller calibration:
+      train_cal_intercept = mc_tr$intercept,
+      train_cal_slope     = mc_tr$slope,
+      test_cal_intercept  = mc_te$intercept,
+      test_cal_slope      = mc_te$slope,
+      test_cal_slopeDiff  = mc_te$slopeDiff
+    )
+    
+    ## ---------- link-scale VI, PER FOLD ----------
+    if (do_varimp) {
+      model_data <- train
+      
+      terms_link <- tryCatch(
+        stats::predict(
+          object  = m,
+          newdata = model_data,
+          type    = "terms",
+          exclude = re_term
+        ),
+        error = function(e) {
+          stats::predict(
+            object  = m,
+            newdata = model_data,
+            type    = "terms"
+          )
+        }
+      )
+      
+      term_imp <- colMeans(abs(terms_link), na.rm = TRUE)
+      
+      pattern <- paste0("\\b(", paste(base_preds, collapse = "|"), ")\\b")
+      pred_imp <- stats::setNames(numeric(length(base_preds)), base_preds)
+      
+      for (j in seq_along(term_imp)) {
+        term_name    <- names(term_imp)[j]
+        vars_in_term <- stringr::str_extract_all(term_name, pattern)[[1]] |> unique()
+        if (length(vars_in_term) > 0L) {
+          share <- term_imp[[j]] / length(vars_in_term)
+          for (v in vars_in_term) {
+            pred_imp[[v]] <- pred_imp[[v]] + share
+          }
+        }
+      }
+      
+      if (sum(pred_imp) > 0) {
+        pred_pct <- 100 * pred_imp / sum(pred_imp)
+      } else {
+        pred_pct <- pred_imp * NA_real_
+      }
+      
+      vi_mat[i, ] <- pred_pct
+    }
+  }
   
-  result@model <- SDMtune::ANN(
-    size = size, decay = decay, rang = rang, maxit = maxit, model = mdl
-  )
-  result
+  metrics <- do.call(rbind, metrics)
+  
+  summary <- within(data.frame(
+    train_auc     = mean(metrics$train_auc,   na.rm = TRUE),
+    test_auc      = mean(metrics$test_auc,    na.rm = TRUE),
+    train_tss     = mean(metrics$train_tss,   na.rm = TRUE),
+    test_tss      = mean(metrics$test_tss,    na.rm = TRUE),
+    train_omr     = mean(metrics$train_omr,   na.rm = TRUE),
+    test_omr      = mean(metrics$test_omr,    na.rm = TRUE),
+    train_boyce   = mean(metrics$train_boyce, na.rm = TRUE),
+    test_boyce    = mean(metrics$test_boyce,  na.rm = TRUE),
+    train_auc_sd  = stats::sd(metrics$train_auc,   na.rm = TRUE),
+    test_auc_sd   = stats::sd(metrics$test_auc,    na.rm = TRUE),
+    train_tss_sd  = stats::sd(metrics$train_tss,   na.rm = TRUE),
+    test_tss_sd   = stats::sd(metrics$test_tss,    na.rm = TRUE),
+    train_omr_sd  = stats::sd(metrics$train_omr,   na.rm = TRUE),
+    test_omr_sd   = stats::sd(metrics$test_omr,    na.rm = TRUE),
+    train_boyce_sd= stats::sd(metrics$train_boyce, na.rm = TRUE),
+    test_boyce_sd = stats::sd(metrics$test_boyce,  na.rm = TRUE),
+    # Miller calibration means:
+    train_cal_intercept = mean(metrics$train_cal_intercept, na.rm = TRUE),
+    train_cal_slope     = mean(metrics$train_cal_slope,     na.rm = TRUE),
+    test_cal_intercept  = mean(metrics$test_cal_intercept,  na.rm = TRUE),
+    test_cal_slope      = mean(metrics$test_cal_slope,      na.rm = TRUE),
+    test_cal_slopeDiff  = mean(metrics$test_cal_slopeDiff,  na.rm = TRUE)
+  ), diff_tss <- train_tss - test_tss)
+  
+  out <- list(models = models, metrics = metrics, summary = summary)
+  
+  ## aggregate VI across folds: mean % and SD of %
+  if (do_varimp) {
+    mean_imp <- colMeans(vi_mat, na.rm = TRUE)
+    sd_imp   <- apply(vi_mat, 2, stats::sd, na.rm = TRUE)
+    
+    out$varimp <- data.frame(
+      variable   = names(mean_imp),
+      importance = as.numeric(mean_imp),   # mean % over folds
+      sd         = as.numeric(sd_imp),     # SD of % over folds
+      row.names  = NULL
+    )
+  }
+  
+  out
 }
+

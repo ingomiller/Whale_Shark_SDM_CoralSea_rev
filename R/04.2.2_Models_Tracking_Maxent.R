@@ -23,30 +23,55 @@ source("R/00_Helper_Functions.R")
 # Import DATA -------------------------------------------------------------
 
 
-tracks <- readRDS("data/processed/Tracks_PA_w_3days_dynSDM_10_2018_2025_extract_processed.rds")
-# tracks <- readRDS("data/processed/Tracks_PA_w_3to7days_dynSDM_10_2018_2025_extract_processed.rds")
-tracks <- readRDS("data/processed/Tracks_PA_w_1to4days_dynSDM_30_2018_2025_extract.rds")
-tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds")
-tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds")
-tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed_monthsreduced.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_3days_dynSDM_10_2018_2025_extract_processed.rds")
+# # tracks <- readRDS("data/processed/Tracks_PA_w_3to7days_dynSDM_10_2018_2025_extract_processed.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_1to4days_dynSDM_30_2018_2025_extract.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed_monthsreduced_final.rds")
 
+# tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced.rds")
+
+# tracks |>
+#   dplyr::group_by(id) |>
+#   dplyr::summarise(Pre = sum(PA==1), Abs = sum(PA==0), ratio = Abs/Pre, .groups="drop") |>
+#   print(n = 200)
+  
+
+tracks <- readRDS( "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_4.rds")
+
+# random backgroudn sampled pseudo absences; rep=15 (~1:10 ratio PA); thetao outlier removed too
+tracks <- readRDS( "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_5.rds")
+
+# tracks <- readRDS( "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_6.rds")
 str(tracks)
 
+tracks |> dplyr::select(-Date) |>   mapview::mapview()
 
 
 
 model_dt <- tracks |>
-  # dplyr::rename(depth = Depth,
-  #               slope = Slope,
-  #               roughness = Roughness,
-  #               wz = Wz) |> 
+  
   dplyr::mutate(month = factor(month, levels = sort(unique(month))),  # 1..12 etc.
-                year  = factor(year),
-                depth = case_when(depth >= 0 ~ -5, TRUE ~ depth),
-                id = as.factor(id),
-                dist2000 = dist2000/1000) |> 
-  sf::st_drop_geometry() |> 
+                year  = factor(year)
+  ) |>
+  sf::st_drop_geometry() |>
   as.data.frame()
+
+
+
+# model_dt <- tracks |>
+#   # dplyr::rename(depth = Depth,
+#   #               slope = Slope,
+#   #               roughness = Roughness,
+#   #               wz = Wz) |> 
+#   dplyr::mutate(month = factor(month, levels = sort(unique(month))),  # 1..12 etc.
+#                 year  = factor(year),
+#                 depth = case_when(depth >= 0 ~ -5, TRUE ~ depth),
+#                 id = as.factor(id),
+#                 dist2000 = dist2000/1000) |> 
+#   sf::st_drop_geometry() |> 
+#   as.data.frame()
 # tracks_old <- readRDS("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/Data_Analysis/R_workfolder/WhaleSharks_SDM/Modelling_Simulations_PA_Predictors_Meta_AC_thinned_FINAL.rds")
 # str(tracks_old)
 # 
@@ -67,6 +92,10 @@ model_dt |>
   rstatix::get_summary_stats(depth)
 
 
+model_dt |> 
+  as.data.frame() |>
+  dplyr::group_by(PA) |> 
+  rstatix::get_summary_stats(thetao, type = "common")
 
 
 # Explore Data ------------------------------------------------------------
@@ -81,57 +110,8 @@ plots
     plots |>  ggplot(aes(x = thetao, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
     plots |>  ggplot(aes(x = uv, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
     plots |>  ggplot(aes(x = chl, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    # plots |>  ggplot(aes(x = dist200, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots |>  ggplot(aes(x = dist2000, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots |>  ggplot(aes(x = wz, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots|>  ggplot(aes(x = mltost, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots|>  ggplot(aes(x = dist_seamount, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots|>  ggplot(aes(x = dist_knoll, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plot_layout(guides = "collect")
-)
-
-
-
-# Transformations
-
-model_dt_trans <- model_dt |>
-  dplyr::mutate(
-    # depth = sign(depth) * abs(depth)^(1/3), # cube root\
-    # depth = -depth,
-    # depth = log1p(depth),
-    # depth = log1p(abs(depth)),
-    # slope = (slope)^(1/3),
-    # slope = log1p(slope),
-    # roughness = (roughness)^(1/3),
-    # roughness = log1p(roughness),
-    # uv = (uv)^(1/3),
-    # uv = log1p(uv),
-    # chl = log(chl),
-    chl = log(chl),
-    # mltost = log(mltost)
-    # mltost = log(mltost)
-  )
-
-
-model_dt_trans |> 
-  rstatix::get_summary_stats() |> 
-  print(n=50)
-model_dt |> 
-  rstatix::get_summary_stats() |> 
-  print(n=50)
-
-
-
-plots <- model_dt_trans |> dplyr::mutate(PA = as.factor(PA))
-plots
-
-(plots |>  ggplot(aes(x = depth, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots |>  ggplot(aes(x = slope, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots |>  ggplot(aes(x = roughness, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots |>  ggplot(aes(x = thetao, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots |>  ggplot(aes(x = uv, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots |>  ggplot(aes(x = chl, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    # plots |>  ggplot(aes(x = dist200, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = dist200, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = dist1000, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
     plots |>  ggplot(aes(x = dist2000, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
     plots |>  ggplot(aes(x = wz, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
     plots|>  ggplot(aes(x = mltost, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
@@ -148,7 +128,7 @@ na_counts
 
 str(model_dt)
 
-model_dt <- model_dt_trans
+# model_dt <- model_dt_trans
 
 model_dt$month
 
@@ -167,9 +147,10 @@ swd <- SDMtune::SWD(
                   uv, 
                   wz, 
                   slope, 
+                  # roughness,
                   depth, 
                   # dist200,
-                  # dist1000, 
+                  # dist1000,
                   dist2000, 
                   # dist_seamount,
                   # dist_knoll,
@@ -227,20 +208,45 @@ swd@data
 # Using Cross Validation Method: ------------------------------------------
 
 # get the blockCV spatial block folds
-sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking.rds")
-sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_3days.rds")
-sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_3to7days.rds")
-sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_1to4days.rds")
-sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp.rds")
-sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp.rds")
-sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced.rds")
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking.rds")
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_3days.rds")
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_3to7days.rds")
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_1to4days.rds")
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp.rds")
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp.rds")
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced.rds")
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final.rds")
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final.rds")
+
+sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final_4.rds")
+sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final_5.rds")
+
+# sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final_6.rds")
 
 
+
+
+
+
+blockCV::cv_plot(cv = sp_blocks,
+                 # x = input_occ,
+                 # r = predictors_mean[[1]],
+                 nrow = 2, 
+                 points_alpha = 0.5)
 
 set.seed(28)
 cv_m0 <- SDMtune::train(method = "Maxent", 
                         data = swd,
                         folds = sp_blocks)
+
+
+
+# cv_m0 <- SDMtune::train(method = "Maxent",
+#                         data = swd,
+#                         folds = sp_blocks,
+#                         fc = "lqph",
+#                         reg = 1.5,
+#                         iter = 5000)
 
 
 cv_m0
@@ -249,6 +255,7 @@ cat("Training AUC: ", SDMtune::auc(cv_m0))
 cat("Testing AUC: ", SDMtune::auc(cv_m0, test = TRUE))
 cat("Training TSS: ", SDMtune::tss(cv_m0))
 cat("Testing TSS: ", SDMtune::tss(cv_m0, test = TRUE))
+
 
 
 
@@ -321,120 +328,142 @@ SDMtune::plotJk(jk2,
 
 
 m <- cv_m0
-SDMtune::plotResponse(m, 
-                      var = "thetao", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "red") +
-  ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
 
-SDMtune::plotResponse(m, 
-                      var = "uv", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+P_sst <- SDMtune::plotResponse(m, 
+                               var = "thetao", 
+                               type = "cloglog", 
+                               only_presence = TRUE, 
+                               marginal = TRUE, 
+                               rug = TRUE,
+                               fun = mean,
+                               color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
+  labs(x = expression("sst ("*degree*"C)")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
+
+P_chl <- SDMtune::plotResponse(m, 
+                               var = "chl", 
+                               type = "cloglog", 
+                               only_presence = TRUE, 
+                               marginal = TRUE, 
+                               rug = TRUE,
+                               fun = mean,
+                               color = "hotpink") +
+  ggplot2::scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "log (chl)") +
   #scale_x_log10() +
-  theme_bw()
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "wz", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
-  ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+P_chl
 
-SDMtune::plotResponse(m, 
-                      var = "mltost", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = median,
-                      color = "steelblue") +
+P_uv <- SDMtune::plotResponse(m, 
+                              var = "uv", 
+                              type = "cloglog", 
+                              only_presence = TRUE, 
+                              marginal = TRUE, 
+                              rug = TRUE,
+                              fun = mean,
+                              color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
+  labs(x = expression("uv (m s"^{-1}*")")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
+
+P_wz <- SDMtune::plotResponse(m, 
+                              var = "wz", 
+                              type = "cloglog", 
+                              only_presence = TRUE, 
+                              marginal = TRUE, 
+                              rug = TRUE,
+                              fun = mean,
+                              color = "hotpink") +
+  ggplot2::scale_y_continuous(limits = c(0, 1)) +
+  labs(x = expression("wz (m s"^{-1}*")")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
+
+P_mld <- SDMtune::plotResponse(m, 
+                               var = "mltost", 
+                               type = "cloglog", 
+                               only_presence = TRUE, 
+                               marginal = TRUE, 
+                               rug = TRUE,
+                               fun = median,
+                               color = "hotpink") +
+  ggplot2::scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "mld (m)") +
   # scale_x_log10() +
-  theme_bw()
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "chl", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = median,
-                      color = "steelblue") +
+P_mld
+
+P_depth <- SDMtune::plotResponse(m, 
+                                 var = "depth", 
+                                 type = "cloglog", 
+                                 only_presence = TRUE, 
+                                 marginal = TRUE, 
+                                 rug = TRUE,
+                                 fun = mean,
+                                 color = "hotpink") +
+  labs(x = "depth (m)") +
+  ggplot2::scale_y_continuous(limits = c(-0.05, 1)) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
+
+P_slope <- SDMtune::plotResponse(m, 
+                                 var = "slope", 
+                                 type = "cloglog", 
+                                 only_presence = TRUE, 
+                                 marginal = TRUE, 
+                                 rug = TRUE,
+                                 fun = mean,
+                                 color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  # scale_x_log10() +
-  theme_bw()
+  labs(x = expression("slope ("*degree*")")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "depth", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+P_dist <- SDMtune::plotResponse(m, 
+                                var = "dist2000", 
+                                type = "cloglog", 
+                                only_presence = TRUE, 
+                                marginal = TRUE, 
+                                rug = TRUE,
+                                fun = mean,
+                                color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  labs(x = "dist2000 (m)") +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "slope", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+P_month <- SDMtune::plotResponse(m, 
+                                 var = "month", 
+                                 type = "cloglog", 
+                                 only_presence = TRUE, 
+                                 marginal = TRUE, 
+                                 rug = TRUE,
+                                 fun = mean,
+                                 color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "dist2000", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
-  ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+marginal_plots <- (P_depth + P_dist + P_sst + P_chl + P_uv + P_mld + P_wz + P_slope + P_month) +
+  patchwork::plot_layout(ncol = 3, guides = "collect", axes = "collect")
 
-# SDMtune::plotResponse(m, 
-#                       var = "dist_seamount", 
-#                       type = "cloglog", 
-#                       only_presence = TRUE, 
-#                       marginal = TRUE, 
-#                       rug = TRUE,
-#                       fun = mean,
-#                       color = "steelblue") +
-#   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-#   theme_bw()
-
-SDMtune::plotResponse(m,
-                      var = "month",
-                      type = "logistic",
-                      only_presence = TRUE,
-                      marginal = TRUE,
-                      rug = TRUE,
-                      fun = mean,
-                      color = "orange") +
-  ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
-
-
+marginal_plots
 
 # Variable Correlations ---------------------------------------------------
 
@@ -470,7 +499,11 @@ bg_dt <- model_dt
 bg4cor <- SDMtune::SWD(
   species = "Bgs",
   coords  = bg_dt |> dplyr::select(lon, lat) |> as.data.frame(),
-  data    = bg_dt |> dplyr::select(thetao, mltost, chl, uv, wz, depth, slope,  dist2000, dist_seamount, dist_knoll, month) |> as.data.frame(),
+  data    = bg_dt |> dplyr::select(thetao, mltost, chl, uv, wz, depth, slope, 
+                                   roughness,
+                                   dist2000, 
+                                   # dist_seamount, dist_knoll, 
+                                   month) |> as.data.frame(),
   pa      = bg_dt$PA)
 
 
@@ -481,7 +514,7 @@ SDMtune::plotCor(bg4cor,
 
 SDMtune::corVar(bg4cor, 
                 method = "spearman", 
-                cor_th = 0.7)
+                cor_th = 0.6)
 
 
 cv_m1 <- SDMtune::varSel(cv_m0, 
@@ -489,7 +522,7 @@ cv_m1 <- SDMtune::varSel(cv_m0,
                          test = TRUE, 
                          bg4cor = bg4cor,
                          method = "spearman", 
-                         cor_th = 0.7,
+                         cor_th = 0.6,
                          permut = 10)
 
 cv_m1
@@ -501,10 +534,10 @@ cv_m1
 
 SDMtune::getTunableArgs(cv_m1)
 
-h <- list(reg = seq(1, 8, by = 1), 
+h <- list(reg = seq(0.5, 5, by = 0.5), 
           fc = c("l", "lq", "lh", "lqp", "lqph"),
           # fc  = c("l", "lh", "lqph"),
-          iter = c(2500, 5000, 7500)
+          iter = c(2500, 5000, 7500, 10000)
 )
 
 h
@@ -517,9 +550,23 @@ expected_fits(pop = 20,
               rounding= "round")
 
 
+# cv_m2 <- SDMtune::optimizeModel(cv_m1, 
+#                                 hypers = h, 
+#                                 metric = "auc",
+#                                 test = TRUE,
+#                                 pop = 20,
+#                                 gen = 5,
+#                                 keep_best = 0.4,
+#                                 keep_random = 0.2,
+#                                 mutation_chance = 0.4,
+#                                 interactive = TRUE,
+#                                 progress = TRUE,
+#                                 seed = 694
+# )
+
 cv_m2 <- SDMtune::optimizeModel(cv_m1, 
                                 hypers = h, 
-                                metric = "auc",
+                                metric = "tss",
                                 test = TRUE,
                                 pop = 20,
                                 gen = 5,
@@ -538,14 +585,18 @@ cv_m2
 
 cv_m2@results
 #ordered 
-cv_m2@results[order(-cv_m2@results$test_AUC), ]
+# cv_m2@results[order(-cv_m2@results$test_AUC), ]
+cv_m2@results[order(-cv_m2@results$test_TSS), ]
 
 # Index of the best model in the experiment
-index <- terra::which.max(cv_m2@results$test_AUC)
+# index <- terra::which.max(cv_m2@results$test_AUC)
+index <- terra::which.max(cv_m2@results$test_TSS)
+index <- 19
 index
 
 
 best_cv_m2 <- cv_m2@models[[index]]
+
 best_cv_m2
 cv_m2@results[index, ]
 
@@ -586,80 +637,80 @@ ROCplots_combined
 
 
 # Refine using gridSearch -------------------------------------------------
-# 
-# h_refine <- list(
-#   reg = seq(1, 4, by = 1), 
-#   fc   = c("lq", "lqp", "lqph", "l"), 
-#   iter = seq(2000, 5000, by = 500)
-# )
-# 
-# 
-# 
-# 
-# cv_m3 <- SDMtune::gridSearch(
-#   model  = cv_m1,         
-#   hypers = h_refine,
-#   metric = "auc",
-#   interactive = TRUE,
-#   progress = TRUE
-# )
-# 
-# 
-# 
-# cv_m3
-# 
-# cv_m3@results
-# #ordered 
-# cv_m3@results[order(-cv_m3@results$test_AUC), ]
-# 
-# # Index of the best model in the experiment
-# index <- terra::which.max(cv_m3@results$test_AUC)
-# index
-# 
-# 
-# best_cv_m3 <- cv_m3@models[[index]]
-# best_cv_m3
-# cv_m3@results[index, ]
-# 
-# 
-# cat("Training TSS: ", SDMtune::tss(best_cv_m3))
-# cat("Testing TSS: ", SDMtune::tss(best_cv_m3, test = TRUE))
-# cat("Training AUC: ", SDMtune::auc(best_cv_m3))
-# cat("Testing AUC: ", SDMtune::auc(best_cv_m3, test = TRUE))
-# 
-# 
-# # check if refine made it better:
-# cat("Testing AUC: ", SDMtune::auc(cv_m1, test = TRUE))
-# cat("Testing AUC: ", SDMtune::auc(best_cv_m3, test = TRUE))
-# cat("Testing TSS: ", SDMtune::tss(cv_m1, test = TRUE))
-# cat("Testing TSS: ", SDMtune::tss(best_cv_m3, test = TRUE))
-# 
-# cat("Testing AUC before tuning: ", SDMtune::auc(best_cv_m2, test = TRUE))
-# cat("Testing AUC after tuning: ", SDMtune::auc(best_cv_m3, test = TRUE))
-# cat("Testing TSS before tuning: ", SDMtune::tss(best_cv_m2, test = TRUE))
-# cat("Testing TSS after tuning: ", SDMtune::tss(best_cv_m3, test = TRUE))
-# 
-# cat("Training AUC before tuning: ", SDMtune::auc(best_cv_m2))
-# cat("Training AUC after tuning: ", SDMtune::auc(best_cv_m3))
-# cat("Training TSS before tuning: ", SDMtune::tss(best_cv_m2))
-# cat("Training TSS after tuning: ", SDMtune::tss(best_cv_m3))
-# 
-# 
-# m <- best_cv_m2
-# ROCplots <- lapply(seq_len(ncol(m@folds$test)), function(i){
-#   idx <- m@folds$test[, i]
-#   test_i <- SDMtune::SWD(
-#     species = m@data@species,
-#     coords  = m@data@coords[idx, , drop = FALSE],
-#     data    = m@data@data  [idx, , drop = FALSE],
-#     pa      = m@data@pa    [idx]
-#   )
-#   SDMtune::plotROC(m@models[[i]], test = test_i) + ggplot2::ggtitle(paste("Fold", i))
-# })
-# 
-# ROCplots
-# 
-# 
+
+h_refine <- list(
+  reg = seq(0.5, 2.5, by = 0.5),
+  fc   = c("lqp", "lqph"),
+  iter = seq(4000, 10000, by =1000)
+)
+
+
+
+
+cv_m3 <- SDMtune::gridSearch(
+  model  = cv_m1,
+  hypers = h_refine,
+  metric = "tss",
+  interactive = TRUE,
+  progress = TRUE
+)
+
+
+
+cv_m3
+
+cv_m3@results
+#ordered
+cv_m3@results[order(-cv_m3@results$test_TSS), ]
+
+# Index of the best model in the experiment
+# index <- terra::which.max(cv_m3@results$test_TSS)
+index <- 8
+
+
+best_cv_m3 <- cv_m3@models[[index]]
+best_cv_m3
+cv_m3@results[index, ]
+
+
+cat("Training TSS: ", SDMtune::tss(best_cv_m3))
+cat("Testing TSS: ", SDMtune::tss(best_cv_m3, test = TRUE))
+cat("Training AUC: ", SDMtune::auc(best_cv_m3))
+cat("Testing AUC: ", SDMtune::auc(best_cv_m3, test = TRUE))
+
+
+# check if refine made it better:
+cat("Testing AUC: ", SDMtune::auc(cv_m1, test = TRUE))
+cat("Testing AUC: ", SDMtune::auc(best_cv_m3, test = TRUE))
+cat("Testing TSS: ", SDMtune::tss(cv_m1, test = TRUE))
+cat("Testing TSS: ", SDMtune::tss(best_cv_m3, test = TRUE))
+
+cat("Testing AUC before tuning: ", SDMtune::auc(best_cv_m2, test = TRUE))
+cat("Testing AUC after tuning: ", SDMtune::auc(best_cv_m3, test = TRUE))
+cat("Testing TSS before tuning: ", SDMtune::tss(best_cv_m2, test = TRUE))
+cat("Testing TSS after tuning: ", SDMtune::tss(best_cv_m3, test = TRUE))
+
+cat("Training AUC before tuning: ", SDMtune::auc(best_cv_m2))
+cat("Training AUC after tuning: ", SDMtune::auc(best_cv_m3))
+cat("Training TSS before tuning: ", SDMtune::tss(best_cv_m2))
+cat("Training TSS after tuning: ", SDMtune::tss(best_cv_m3))
+
+
+m <- best_cv_m3
+ROCplots <- lapply(seq_len(ncol(m@folds$test)), function(i){
+  idx <- m@folds$test[, i]
+  test_i <- SDMtune::SWD(
+    species = m@data@species,
+    coords  = m@data@coords[idx, , drop = FALSE],
+    data    = m@data@data  [idx, , drop = FALSE],
+    pa      = m@data@pa    [idx]
+  )
+  SDMtune::plotROC(m@models[[i]], test = test_i) + ggplot2::ggtitle(paste("Fold", i))
+})
+
+ROCplots
+
+
 
 
 
@@ -668,20 +719,25 @@ ROCplots_combined
 
 # Removing variables with low importance  --------------------------------
 
-SDMtune::varImp(best_cv_m2, 
+SDMtune::varImp(best_cv_m3,
                 permut = 10)
 
+# SDMtune::varImp(cv_m0,
+#                 permut = 10)
 
 
+best_cv_m3
 
-cv_m4 <- SDMtune::reduceVar(best_cv_m2, 
-                            th = 1, 
-                            metric = "auc", 
+cv_m4 <- SDMtune::reduceVar(best_cv_m3, 
+                            th = 0.5, 
+                            metric = "tss", 
                             test = TRUE, 
                             permut = 10, 
                             use_jk = TRUE,
                             interactive = TRUE,
                             verbose = TRUE)
+
+# cv_m4 <- readRDS("models/objects/Tracks_Maxent_CV_Models_SDMtune_mp.rds")
 
 cat("Testing TSS before: ", SDMtune::tss(best_cv_m2, test = TRUE))
 cat("Testing TSS after: ", SDMtune::tss(cv_m4, test = TRUE))
@@ -693,13 +749,115 @@ cat("Traning TSS after: ", SDMtune::tss(cv_m4))
 cat("Traning AUC before: ", SDMtune::auc(best_cv_m2))
 cat("Traning AUC after: ", SDMtune::auc(cv_m4))
 
+# cv_m4 <- best_cv_m2
+
+m <- cv_m4
+cv_m4
+
+ROCplots <- lapply(seq_len(ncol(m@folds$test)), function(i){
+  idx <- m@folds$test[, i]
+  test_i <- SDMtune::SWD(
+    species = m@data@species,
+    coords  = m@data@coords[idx, , drop = FALSE],
+    data    = m@data@data  [idx, , drop = FALSE],
+    pa      = m@data@pa    [idx]
+  )
+  SDMtune::plotROC(m@models[[i]], test = test_i) + ggplot2::ggtitle(paste("Fold", i))
+})
+
+m@folds$train
+
+ROCplots_combined <- wrap_plots(ROCplots) +
+  plot_layout(ncol = 3, nrow = 2, axes = "collect") &
+  ggplot2::theme(
+    legend.position = c(0.95, 0.03),  # x, y coordinates (right–bottom)
+    legend.justification = c("right", "bottom"),
+    legend.background = element_rect(fill = alpha("white", 0.6), colour = NA),
+    legend.key.size = unit(10, "pt"),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 10)
+  )
+
+ROCplots_combined
+
+
+# helper to build an SWD from row indices of the original SWD
+.build_swd <- function(obj, idx) {
+  SDMtune::SWD(
+    species = obj@data@species,
+    coords  = obj@data@coords[idx, , drop = FALSE],
+    data    = obj@data@data  [idx, , drop = FALSE],
+    pa      = obj@data@pa    [idx]
+  )
+}
+
+k <- ncol(m@folds$test)
+
+metrics_per_fold <- data.frame(
+  fold      = seq_len(k),
+  auc_train = vapply(seq_len(k), function(i) {
+    idx_tr <- m@folds$train[, i]
+    swd_tr <- .build_swd(m, idx_tr)
+    SDMtune::auc(m@models[[i]], test = swd_tr)
+  }, numeric(1)),
+  auc_test  = vapply(seq_len(k), function(i) {
+    idx_te <- m@folds$test[, i]
+    swd_te <- .build_swd(m, idx_te)
+    SDMtune::auc(m@models[[i]], test = swd_te)
+  }, numeric(1)),
+  tss_train = vapply(seq_len(k), function(i) {
+    idx_tr <- m@folds$train[, i]
+    swd_tr <- .build_swd(m, idx_tr)
+    SDMtune::tss(m@models[[i]], test = swd_tr)
+  }, numeric(1)),
+  tss_test  = vapply(seq_len(k), function(i) {
+    idx_te <- m@folds$test[, i]
+    swd_te <- .build_swd(m, idx_te)
+    SDMtune::tss(m@models[[i]], test = swd_te)
+  }, numeric(1))
+)
+
+# rounded view and fold means (optional)
+metrics_per_fold_rounded <- metrics_per_fold |>
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ base::round(.x, 2)))
+
+
+cv_summary <- base::list(
+  metrics_per_fold |>
+    dplyr::summarise(
+      dplyr::across(c(auc_train, auc_test, tss_train, tss_test), ~ base::mean(.x))
+    ) |>
+    dplyr::mutate(stat = "mean"),
+  metrics_per_fold |>
+    dplyr::summarise(
+      dplyr::across(c(auc_train, auc_test, tss_train, tss_test), ~ stats::sd(.x))
+    ) |>
+    dplyr::mutate(stat = "sd")
+) |>
+  dplyr::bind_rows() |>
+  dplyr::mutate(dplyr::across(-stat, ~ base::round(.x, 3))) |>
+  dplyr::relocate(stat)
+
+metrics_per_fold_rounded
+cv_summary
+
+
+
 cv_m4
 
 
-vi_maxent <- SDMtune::varImp(cv_m4, 
-                             permut = 10)
-vi_maxent
-SDMtune::plotVarImp(vi_maxent)
+max_vi <- SDMtune::varImp(cv_m4, permut = 10)
+
+# 2) Turn it into a tidy data.frame/tibble
+max_vi_df <- max_vi |>
+  tibble::as_tibble(rownames = "variable") |>
+  dplyr::rename(importance = 2L) |>
+  dplyr::mutate(algorithm = "MaxEnt")
+
+
+max_vi_df
+
+saveRDS(max_vi_df, "models/tables/MaxEnt_Var_Importance_CV.rds")
 
 
 jk4 <- SDMtune::doJk(cv_m4, 
@@ -717,134 +875,350 @@ SDMtune::plotJk(jk4,
 
 
 m <- cv_m4
-P_sst <- SDMtune::plotResponse(cv_m4, 
-                      var = "thetao", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "red") +
+# m <- best_cv_m2
+P_sst <- SDMtune::plotResponse(m, 
+                               var = "thetao", 
+                               type = "cloglog", 
+                               only_presence = TRUE, 
+                               marginal = TRUE, 
+                               rug = TRUE,
+                               fun = mean,
+                               color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  labs(x = expression("sst ("*degree*"C)")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-P_chl <- SDMtune::plotResponse(cv_m4, 
-                      var = "chl", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "red") +
+P_chl <- SDMtune::plotResponse(m, 
+                               var = "chl", 
+                               type = "cloglog", 
+                               only_presence = TRUE, 
+                               marginal = TRUE, 
+                               rug = TRUE,
+                               fun = mean,
+                               color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  labs(x = expression("chl (log(mg m"^{-3}*"))")) +
+  #scale_x_log10() +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
+
+P_chl
 
 P_uv <- SDMtune::plotResponse(m, 
-                      var = "uv", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+                              var = "uv", 
+                              type = "cloglog", 
+                              only_presence = TRUE, 
+                              marginal = TRUE, 
+                              rug = TRUE,
+                              fun = mean,
+                              color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  #scale_x_log10() +
-  theme_bw()
+  labs(x = expression("uv (m s"^{-1}*")")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
 P_wz <- SDMtune::plotResponse(m, 
-                      var = "wz", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+                              var = "wz", 
+                              type = "cloglog", 
+                              only_presence = TRUE, 
+                              marginal = TRUE, 
+                              rug = TRUE,
+                              fun = mean,
+                              color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  labs(x = expression("wz (m s"^{-1}*")")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-# P_mld <- SDMtune::plotResponse(m, 
-#                       var = "mltost", 
-#                       type = "cloglog", 
-#                       only_presence = TRUE, 
-#                       marginal = TRUE, 
-#                       rug = TRUE,
-#                       fun = median,
-#                       color = "steelblue") +
-#   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-#   scale_x_log10() +
-#   theme_bw()
+P_mld <- SDMtune::plotResponse(m, 
+                               var = "mltost", 
+                               type = "cloglog", 
+                               only_presence = TRUE, 
+                               marginal = TRUE, 
+                               rug = TRUE,
+                               fun = median,
+                               color = "hotpink") +
+  ggplot2::scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "mld (m)") +
+  # scale_x_log10() +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
+
+P_mld
 
 P_depth <- SDMtune::plotResponse(m, 
-                      var = "depth", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+                                 var = "depth", 
+                                 type = "cloglog", 
+                                 only_presence = TRUE, 
+                                 marginal = TRUE, 
+                                 rug = TRUE,
+                                 fun = mean,
+                                 color = "hotpink") +
+  labs(x = "depth (m)") +
   ggplot2::scale_y_continuous(limits = c(-0.05, 1)) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
 P_slope <- SDMtune::plotResponse(m, 
-                      var = "slope", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+                                 var = "slope", 
+                                 type = "cloglog", 
+                                 only_presence = TRUE, 
+                                 marginal = TRUE, 
+                                 rug = TRUE,
+                                 fun = mean,
+                                 color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  labs(x = expression("slope ("*degree*")")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
 P_dist <- SDMtune::plotResponse(m, 
-                      var = "dist2000", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+                                var = "dist2000", 
+                                type = "cloglog", 
+                                only_presence = TRUE, 
+                                marginal = TRUE, 
+                                rug = TRUE,
+                                fun = mean,
+                                color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
-
-# SDMtune::plotResponse(m, 
-#                       var = "dist_seamount", 
-#                       type = "cloglog", 
-#                       only_presence = TRUE, 
-#                       marginal = TRUE, 
-#                       rug = TRUE,
-#                       fun = mean,
-#                       color = "steelblue") +
-#   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-#   theme_bw()
+  labs(x = "dist2000 (m)") +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
 P_month <- SDMtune::plotResponse(m, 
-                      var = "month", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+                                 var = "month", 
+                                 type = "cloglog", 
+                                 only_presence = TRUE, 
+                                 marginal = TRUE, 
+                                 rug = TRUE,
+                                 fun = mean,
+                                 color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
+
+marginal_plots <- (P_depth + P_dist + P_sst + P_chl + P_uv + P_mld + P_wz + P_slope + P_month) +
+  patchwork::plot_layout(ncol = 3, guides = "collect", axes = "collect")
+
+marginal_plots
 
 
-(P_depth + P_dist + P_sst + P_chl + P_slope + P_uv + P_wz + P_month) +
-  patchwork::plot_layout(nrow = 2, guides = "collect", axes = "collect")
+ggsave("MaxEnt_RepsonsePlots_Marginal_Tracking_mp.png", plot = marginal_plots, path ="outputs/final_figures", scale =1, width = 18, height = 20, units = "cm", dpi = 300)
+
+
+
+
+plot_brt_interaction_3d <- function(model,
+                                    var1,
+                                    var2,
+                                    n = 50,
+                                    fun = stats::median) {
+  
+  if (!methods::is(model, "SDMmodel")) {
+    base::stop("`model` must be an SDMmodel object (e.g., a single BRT, not SDMmodelCV).")
+  }
+  
+  # Training data
+  x <- model@data@data |>
+    base::as.data.frame()
+  
+  if (!(var1 %in% base::names(x))) {
+    base::stop("Variable ", var1, " not found in model@data@data.")
+  }
+  if (!(var2 %in% base::names(x))) {
+    base::stop("Variable ", var2, " not found in model@data@data.")
+  }
+  
+  # Sequences over the two focal variables
+  v1_seq <- base::seq(
+    from = base::min(x[[var1]], na.rm = TRUE),
+    to   = base::max(x[[var1]], na.rm = TRUE),
+    length.out = n
+  )
+  
+  v2_seq <- base::seq(
+    from = base::min(x[[var2]], na.rm = TRUE),
+    to   = base::max(x[[var2]], na.rm = TRUE),
+    length.out = n
+  )
+  
+  # Grid over the two variables
+  grid <- base::expand.grid(
+    var1 = v1_seq,
+    var2 = v2_seq
+  )
+  base::names(grid)[1:2] <- c(var1, var2)
+  
+  # Hold other predictors constant
+  other_vars <- base::setdiff(base::names(x), c(var1, var2))
+  
+  for (nm in other_vars) {
+    if (base::is.numeric(x[[nm]])) {
+      grid[[nm]] <- fun(x[[nm]], na.rm = TRUE)
+    } else if (base::is.factor(x[[nm]]) || base::is.character(x[[nm]])) {
+      tab <- base::table(x[[nm]])
+      grid[[nm]] <- base::names(tab)[base::which.max(tab)]
+    } else {
+      grid[[nm]] <- fun(x[[nm]], na.rm = TRUE)
+    }
+  }
+  
+  # Predict
+  grid$pred <- SDMtune::predict(model, data = grid)
+  
+  # Turn predictions into matrix for surface plot
+  z_mat <- base::matrix(
+    grid$pred,
+    nrow = base::length(v1_seq),
+    ncol = base::length(v2_seq),
+    byrow = FALSE
+  )
+  
+  # 3D surface with plotly
+  p <- plotly::plot_ly(
+    x = v1_seq,
+    y = v2_seq,
+    z = z_mat
+  ) |>
+    plotly::add_surface() |>
+    plotly::layout(
+      scene = list(
+        xaxis = list(title = var1),
+        yaxis = list(title = var2),
+        zaxis = list(title = "BRT prediction")
+      )
+    )
+  
+  return(p)
+}
+
+
+m <- final_m
+plot_brt_interaction_3d(
+  model = final_brt,
+  var1  = "thetao",
+  var2  = "chl",
+  fun = mean
+)
+
+
+plot_brt_interaction_3d(
+  model = final_brt,
+  var1  = "uv",
+  var2  = "chl",
+  fun = mean
+)
+
+plot_brt_interaction_3d(
+  model = final_brt,
+  var1  = "wz",
+  var2  = "chl",
+  fun = mean
+)
+
+plot_brt_interaction_3d(
+  model = final_brt,
+  var1  = "thetao",
+  var2  = "wz",
+  fun = mean
+)
+
+plot_brt_interaction_3d(
+  model = final_brt,
+  var1  = "depth",
+  var2  = "wz",
+  fun = mean
+)
+
+plot_brt_interaction_3d(
+  model = final_brt,
+  var1  = "slope",
+  var2  = "wz",
+  fun = mean
+)
+
+plot_brt_interaction_3d(
+  model = final_brt,
+  var1  = "depth",
+  var2  = "thetao",
+  fun = mean
+)
+
+plot_brt_interaction_3d(
+  model = final_brt,
+  var1  = "depth",
+  var2  = "dist2000",
+  fun = mean
+)
+
+plot_brt_interaction_3d(
+  model = final_brt,
+  var1  = "slope",
+  var2  = "dist2000",
+  fun = mean
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # get final model 
 set.seed(25)
 final_m <- SDMtune::combineCV(cv_m4)
+# final_m <- SDMtune::combineCV(best_cv_m2)
 
 SDMtune::plotROC(final_m)
 final_m@model
 final_m
 
+cv_m0
+
+
+relevant_vars <- names(final_m@data@data)
+relevant_vars
+predictors <- predictors_mean[[relevant_vars]]
+names(predictors_mean)
+
+e <- terra::ext(c(140, 170, -40, 0))
+
+
+predictors <-  predictors |>
+  terra::crop(e, snap = "out") 
+
+plot(predictors)
+
 
 map <- SDMtune::predict(final_m,
-                        data = predictors_mean,
+                        data = predictors,
                         type = "cloglog",
                         const = (data.frame(month = "0"))
                         )
@@ -874,7 +1248,7 @@ SDMtune::plotPA(map,
 
 SDMtune::modelReport(final_m, 
                      type = "cloglog", 
-                     folder = "models/objects/Tracks_Maxent_tuned_mp", 
+                     folder = "mmodels/objects/Tracks_Maxent_tuned_mp_crwPA_final", 
                      test = NULL, 
                      response_curves = TRUE, 
                      only_presence = TRUE, 
@@ -883,26 +1257,39 @@ SDMtune::modelReport(final_m,
 
 
 
-saveRDS(cv_m4, "models/objects/Tracks_Maxent_CV_Models_SDMtune_mp.rds")
-saveRDS(final_m, "models/objects/Tracks_Maxent_final_Model_SDMtune_mp.rds")
+# saveRDS(cv_m4, "models/objects/Tracks_Maxent_CV_Models_SDMtune_mp.rds")
+# saveRDS(final_m, "models/objects/Tracks_Maxent_final_Model_SDMtune_mp.rds")
 
+saveRDS(cv_m4, "models/objects/Tracks_Maxent_CV_Models_SDMtune_mp_crwPA_final.rds")
+saveRDS(final_m, "models/objects/Tracks_Maxent_final_Model_SDMtune_mp_crwPA_final.rds")
 
+cv_m4 <- readRDS("models/objects/Tracks_Maxent_CV_Models_SDMtune_mp_crwPA_final.rds")
+final_m <- readRDS( "models/objects/Tracks_Maxent_final_Model_SDMtune_mp_crwPA_final.rds")
+final_m
+# final_m_good <- readRDS("models/objects/Tracks_Maxent_final_Model_SDMtune_mp.rds")
+# str(final_m_good@data@data)
+# final_m_good
+# final_m
+
+# SDMtune::varImp(final_m_good, 
+#                 permut = 10)
 
 
 # create extrnal validation data from sightings 
 sight <- readRDS("data/processed/Sightings_PA_w_dynSDM_10_2010_2025_extract_processed.rds")
 # sight <- readRDS("data/work_files/Sightings_Validation_data_extract_full.rds")
 str(sight)
+sight |> dplyr::group_by(PA) |>  dplyr::filter(lon > 140) |>  dplyr::summarise(N = n())
 
 
-
-mapview::mapview(sight |> dplyr::select(-Date))
+mapview::mapview(sight |> dplyr::select(-Date) |>  dplyr::filter(PA==1 & lon > 140)) 
 
 
 val_dt <- sight |>
-  # dplyr::filter(PA == 1) |> 
-  dplyr::filter(lon >140 & lon < 170) |>
-  # dplyr::filter(lat >-35 & lat < -5) |>
+  # dplyr::filter(PA == 1) |>
+  dplyr::filter(lon >150 & lon < 180) |> # making external dataset spatially independent of calibrationn data
+  # dplyr::filter(lon >142 & lon < 160) |>
+  # dplyr::filter(lat >-17 & lat < -5) |>
   dplyr::mutate(month = factor(month, levels = sort(unique(month))),  # 1..12 etc.
                 year  = factor(year)) |> 
   # dplyr::rename(depth = Depth,
@@ -910,6 +1297,7 @@ val_dt <- sight |>
   #               roughness = Roughness,
   #               wz = Wz) |>
   sf::st_drop_geometry() |> 
+  # dplyr::filter(!month %in% c(7, 8, 9, 10)) |>
   as.data.frame()
 
 str(val_dt)
@@ -920,12 +1308,11 @@ val_dt <- val_dt |>
     # slope = log1p(slope),
     # roughness = log1p(roughness),
     chl = log(chl),
-    dist2000 = dist2000/1000,
-    PA = as.factor(PA))
+    dist2000 = dist2000/1000)
 
 
 
-plots <- val_dt
+plots <- val_dt |> dplyr::mutate(PA = as.factor(PA))
 
 (plots |>  ggplot(aes(x = depth, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
     plots |>  ggplot(aes(x = slope, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
@@ -991,64 +1378,212 @@ ggplot2::ggplot(roc_df, aes(x = fpr, y = tpr)) +
 
 
 
+ths_ext <- SDMtune::thresholds(
+  model = final_m,
+  test  = val.swd    # external validation SWD
+  # type = "cloglog" # only needed for Maxent/Maxnet with specific output type
+)
+
+ths_ext
+
+
+pred_val <- SDMtune::predict(final_m, data = val.swd)
+labels   <- val.swd@pa
+
+# Boyce index on external validation set
+boyce_ext <- ecospat::ecospat.boyce(
+  fit   = pred_val,                 # predictions for ALL external points
+  obs   = pred_val[labels == 1],    # predictions at external presences
+  PEplot = TRUE
+)
+
+
+
+boyce_ext$cor
+
+
+
+
+
+
+
+# Residuals autocorrealtion -----------------------------------------------
+
+m <- best_cv_m3
+
+# 1) Extract SWD data used to fit the model
+swd.r <- m@data   # SDMtune::SWD object
+
+# 2) Fitted probabilities for those points
+# For MaxEnt: use cloglog or logistic, NOT raw
+fitted <- SDMtune::predict(m, data = swd.r, type = "cloglog")
+# or type = "prob" depending on how you set it up; usually "raw" is fine for Bernoulli
+
+# 3) Observed 0/1 (presence/absence or presence/background)
+obs <- swd.r@pa
+
+# 4) Simple residuals (you can also use Pearson residuals if you want)
+resid <- obs - fitted
+
+# Put everything into a data.frame with coordinates
+resid_df <- data.frame(
+  x      = swd.r@coords[, 1],
+  y      = swd.r@coords[, 2],
+  obs    = obs,
+  fitted = fitted,
+  resid  = resid
+)
+
+
+resid_df
+resid_sf <- resid_df |>
+  sf::st_as_sf(coords = c("x", "y"), crs = 4326) |>
+  sf::st_transform(crs = 3577)  # or another equal-area / metric CRS you’re using
+
+resid_sf
+str(resid_sf)
+predictors
+ac_resid <- blockCV::cv_spatial_autocor(
+  # r      = predictors,        # SpatRaster / Raster* is fine
+  x      = resid_sf,     
+  column = "resid"       # use residuals, not the raw PA
+  # other args: size, k, etc. you can leave default to let it explore lags
+)
+
+summary(ac_resid)
+
+
+
 
 
 
 # Boyce index -------------------------------------------------------------
 
-oof_boyce_from_cv <- function(cv_model, type = "cloglog", use_test_background = TRUE,
-                              boyce_res = 100L, boyce_nclass = 0L, plot = TRUE) {
+
+
+boyce_from_cv_by_fold <- function(cv_model,
+                                  type = "cloglog",
+                                  use_background = TRUE,
+                                  boyce_res = 100L,
+                                  boyce_nclass = 0L,
+                                  plot = FALSE) {
   k <- base::ncol(cv_model@folds$test)
-  obs_all <- base::numeric(0)
-  fit_all <- base::numeric(0)
   
-  for (i in base::seq_len(k)) {
-    idx <- cv_model@folds$test[, i]
-    test_i <- SDMtune::SWD(
-      species = cv_model@data@species,
-      coords  = cv_model@data@coords[idx, , drop = FALSE],
-      data    = cv_model@data@data  [idx, , drop = FALSE],
-      pa      = cv_model@data@pa    [idx]
+  boyce_train  <- base::numeric(k)
+  boyce_test   <- base::numeric(k)
+  n_train_bins <- base::integer(k)
+  n_test_bins  <- base::integer(k)
+  
+  # helper to compute Boyce (Spearman rho) from preds + pa
+  compute_boyce <- function(preds, pa) {
+    obs <- preds[pa == 1L]
+    fit <- if (use_background) preds[pa == 0L] else preds
+    
+    obs <- obs[stats::complete.cases(obs)]
+    fit <- fit[stats::complete.cases(fit)]
+    
+    boyce <- ecospat::ecospat.boyce(
+      fit      = fit,
+      obs      = obs,
+      window.w = "default",
+      nclass   = boyce_nclass,
+      res      = boyce_res,
+      PEplot   = plot
     )
-    preds <- SDMtune::predict(cv_model@models[[i]], data = test_i, type = type)
-    obs_all <- base::c(obs_all, preds[test_i@pa == 1L])
-    fit_all <- base::c(fit_all, if (use_test_background) preds[test_i@pa == 0L] else preds)
+    
+    df <- base::data.frame(HS = boyce$HS, PE = boyce$F.ratio) |>
+      dplyr::filter(stats::complete.cases(HS, PE))
+    
+    ct <- stats::cor.test(df$HS, df$PE, method = "spearman", exact = FALSE)
+    
+    list(
+      rho     = unname(ct$estimate),
+      p_value = ct$p.value,
+      n_bins  = base::nrow(df)
+    )
   }
   
-  obs_all <- obs_all[stats::complete.cases(obs_all)]
-  fit_all <- fit_all[stats::complete.cases(fit_all)]
+  for (i in base::seq_len(k)) {
+    # --- indices ---
+    test_idx <- cv_model@folds$test[, i]
+    
+    if ("train" %in% base::names(cv_model@folds)) {
+      train_idx <- cv_model@folds$train[, i]
+    } else {
+      train_idx <- !test_idx
+    }
+    
+    # --- build SWDs ---
+    train_swd <- SDMtune::SWD(
+      species = cv_model@data@species[train_idx],
+      coords  = cv_model@data@coords[train_idx, , drop = FALSE],
+      data    = cv_model@data@data  [train_idx, , drop = FALSE],
+      pa      = cv_model@data@pa    [train_idx]
+    )
+    
+    test_swd <- SDMtune::SWD(
+      species = cv_model@data@species[test_idx],
+      coords  = cv_model@data@coords[test_idx, , drop = FALSE],
+      data    = cv_model@data@data  [test_idx, , drop = FALSE],
+      pa      = cv_model@data@pa    [test_idx]
+    )
+    
+    # --- predictions ---
+    preds_train <- SDMtune::predict(cv_model@models[[i]],
+                                    data = train_swd,
+                                    type = type)
+    
+    preds_test  <- SDMtune::predict(cv_model@models[[i]],
+                                    data = test_swd,
+                                    type = type)
+    
+    # --- Boyce train ---
+    bt <- compute_boyce(preds_train, train_swd@pa)
+    boyce_train[i]  <- bt$rho
+    n_train_bins[i] <- bt$n_bins
+    
+    # --- Boyce test ---
+    bte <- compute_boyce(preds_test, test_swd@pa)
+    boyce_test[i]  <- bte$rho
+    n_test_bins[i] <- bte$n_bins
+  }
   
-  boyce <- ecospat::ecospat.boyce(
-    fit      = fit_all,
-    obs      = obs_all,
-    window.w = "default",
-    nclass   = boyce_nclass,
-    res      = boyce_res,
-    PEplot   = plot
+  fold_results <- base::data.frame(
+    fold         = base::seq_len(k),
+    boyce_train  = boyce_train,
+    boyce_test   = boyce_test,
+    n_train_bins = n_train_bins,
+    n_test_bins  = n_test_bins
   )
   
-  df <- base::data.frame(HS = boyce$HS, PE = boyce$F.ratio) |>
-    dplyr::filter(stats::complete.cases(HS, PE))
-  
-  ct <- stats::cor.test(df$HS, df$PE, method = "spearman", exact = FALSE)
+  summary <- list(
+    train_mean = mean(boyce_train, na.rm = TRUE),
+    train_sd   = sd(boyce_train,   na.rm = TRUE),
+    test_mean  = mean(boyce_test,  na.rm = TRUE),
+    test_sd    = sd(boyce_test,    na.rm = TRUE)
+  )
   
   list(
-    boyce      = boyce,
-    df         = df,                 # for ggplot
-    rho        = unname(ct$estimate),
-    p_value    = ct$p.value,
-    n_points   = base::nrow(df)
+    folds   = fold_results,
+    summary = summary
   )
 }
 
 
 
-# --- run on best CV trackss model ---
-res_boyce <- oof_boyce_from_cv(cv_m4, type = "cloglog", use_test_background = TRUE)
-res_boyce$p_value
-res_boyce$boyce
-res_boyce$rho
-res_boyce$df
+boyce_cv_m <- boyce_from_cv_by_fold(
+  cv_model       = cv_m4,
+  type           = "cloglog",
+  use_background = TRUE,
+  boyce_res      = 100L,
+  boyce_nclass   = 0L,
+  plot           = FALSE
+)
+
+boyce_cv_m$folds    # per-fold Boyce for train + test
+boyce_cv_m$summary  # mean ± sd (train/test)
+
+
 
 
 
@@ -1106,6 +1641,9 @@ ggplot(df_plot, aes(x = HS, y = PE)) +
   theme_bw()
 
 
+
+
+
 # Kappa  ------------------------------------------------------------------
 
 preds <- SDMtune::predict(final_m, data = swd, type = "cloglog")
@@ -1146,6 +1684,109 @@ performance_tbl <- tibble::tibble(
 
 performance_tbl
 
+
+# Omission rate -----------------------------------------------------------
+
+
+omission_cv_maxTSS_train_test <- function(cv_model) {
+  
+  k <- base::ncol(cv_model@folds$test)
+  
+  # Determine prediction type once
+  type <- if (inherits(cv_model@models[[1]]@model, "Maxent")) "raw" else "link"
+  
+  get_fold_omission <- function(i) {
+    test_idx <- cv_model@folds$test[, i]
+    
+    # If train indices exist, use them; otherwise use complement of test
+    if ("train" %in% base::names(cv_model@folds)) {
+      train_idx <- cv_model@folds$train[, i]
+    } else {
+      train_idx <- !test_idx
+    }
+    
+    # --- build SWD objects ---
+    train_swd <- SDMtune::SWD(
+      species = cv_model@data@species[train_idx],
+      coords  = cv_model@data@coords[train_idx, , drop = FALSE],
+      data    = cv_model@data@data  [train_idx, , drop = FALSE],
+      pa      = cv_model@data@pa    [train_idx]
+    )
+    
+    test_swd <- SDMtune::SWD(
+      species = cv_model@data@species[test_idx],
+      coords  = cv_model@data@coords[test_idx, , drop = FALSE],
+      data    = cv_model@data@data  [test_idx, , drop = FALSE],
+      pa      = cv_model@data@pa    [test_idx]
+    )
+    
+    # --- TRAIN confusion matrix + maxTSS ---
+    cm_train <- SDMtune::confMatrix(
+      model = cv_model@models[[i]],
+      test  = train_swd,
+      type  = type
+    )
+    
+    tpr_train <- cm_train$tp / (cm_train$tp + cm_train$fn)
+    tnr_train <- cm_train$tn / (cm_train$fp + cm_train$tn)
+    tss_train <- tpr_train + tnr_train - 1
+    
+    i_best_train   <- which.max(tss_train)
+    omission_train <- 1 - tpr_train[i_best_train]
+    
+    # --- TEST confusion matrix + maxTSS ---
+    cm_test <- SDMtune::confMatrix(
+      model = cv_model@models[[i]],
+      test  = test_swd,
+      type  = type
+    )
+    
+    tpr_test <- cm_test$tp / (cm_test$tp + cm_test$fn)
+    tnr_test <- cm_test$tn / (cm_test$fp + cm_test$tn)
+    tss_test <- tpr_test + tnr_test - 1
+    
+    i_best_test   <- which.max(tss_test)
+    omission_test <- 1 - tpr_test[i_best_test]
+    
+    tibble::tibble(
+      fold              = i,
+      threshold_train   = cm_train$th[i_best_train],
+      omission_train    = omission_train,
+      sensitivity_train = tpr_train[i_best_train],
+      specificity_train = tnr_train[i_best_train],
+      tss_train         = tss_train[i_best_train],
+      threshold_test    = cm_test$th[i_best_test],
+      omission_test     = omission_test,
+      sensitivity_test  = tpr_test[i_best_test],
+      specificity_test  = tnr_test[i_best_test],
+      tss_test          = tss_test[i_best_test]
+    )
+  }
+  
+  folds_df <- purrr::map_dfr(base::seq_len(k), get_fold_omission)
+  
+  summary_df <- folds_df |>
+    dplyr::summarise(
+      mean_omission_train = base::mean(omission_train),
+      sd_omission_train   = stats::sd(omission_train),
+      mean_tss_train      = base::mean(tss_train),
+      sd_tss_train        = stats::sd(tss_train),
+      mean_omission_test  = base::mean(omission_test),
+      sd_omission_test    = stats::sd(omission_test),
+      mean_tss_test       = base::mean(tss_test),
+      sd_tss_test         = stats::sd(tss_test)
+    )
+  
+  list(
+    folds   = folds_df,   # per-fold omission/TSS at each set's own maxTSS
+    summary = summary_df  # mean ± sd across folds for train and test
+  )
+}
+
+om_cv <- omission_cv_maxTSS_train_test(cv_m4)
+
+om_cv$folds    # per-fold train + test omission/TSS/threshold
+om_cv$summary  # mean ± sd train vs test
 
 
 
@@ -1217,9 +1858,9 @@ SDMtune::plotPA(monthly_predictions_stack[[64]],
                 th = ths[3, 2])
 
 
-# writeRaster(monthly_predictions_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_monthly_2018_2025_rev_mp.tif", overwrite = TRUE)
+writeRaster(monthly_predictions_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_monthly_2018_2025_rev_mp_crwPA.tif", overwrite = TRUE)
 
-monthly_predictions_stack <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_monthly_2018_2025_rev_mp.tif")
+# monthly_predictions_stack <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_monthly_2018_2025_rev_mp.tif")
 
 ### Monthly Means over tracking period
 
@@ -1258,13 +1899,30 @@ names(monthly_means_stack) <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
 monthly_means_stack
 
 
-plot(monthly_means_stack, range = c(0, 1))
+# plot(monthly_means_stack, range = c(0, 1))
 plot(monthly_means_stack[[12]], range = c(0, 1))
 plot(monthly_means_stack[[5]], range = c(0, 1))
 
 
 # Save for ensemble modelling
-writeRaster(monthly_means_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_monthly_means_rev.tif", overwrite = TRUE)
+writeRaster(monthly_means_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_monthly_means_rev_crwPA.tif", overwrite = TRUE)
+
+
+## Overall mean 
+
+
+mean_climate <- terra::app(monthly_means_stack, fun = mean, na.rm = TRUE)
+mean_climate
+plot(mean_climate)
+
+# Save for ensemble modelling
+# writeRaster(mean_climate, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracking_Maxent_mean_rev_mp.tif", overwrite = TRUE)
+
+writeRaster(mean_climate, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracking_Maxent_mean_rev_mp_crwPA.tif", overwrite = TRUE)
+
+
+
+
 
 ### Monsoon vs Trade Wind::
 
@@ -1301,7 +1959,13 @@ for (season in seasons_2) {
 
 seasonal_means_stack_2
 
+
+seasonal_means_stack_2 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_seasons2_means_rev_mp_crwPA.tif")
+
 plot(seasonal_means_stack_2, range = c(0, 1))
+plot(seasonal_means_stack_2, range = c(0, 1), xlim = c(140, 170), ylim = c(-40, 0), axes =FALSE, legend =FALSE)
+
+plot(seasonal_means_stack_2, range = c(0, 1), col = colorRampPalette(c("blue4", "dodgerblue2", "cyan2", "green4", "yellow", "orange", "firebrick1"))(100))
 
 
 
@@ -1315,10 +1979,11 @@ Mean_Season_monsoon_SDM_plot <-  rasterVis::levelplot(seasonal_means_stack_2,
                                                       names.attr = c("Monsoon (Nov - Apr)", 
                                                                      "Dry (May - Oct)"),
                                                       zlim = c(0, high),
-                                                      at = seq(0, high, length.out = 200),
-                                                      #col.regions =  rev(topo.colors(200)),
-                                                      col.regions = cm_ocean_palette, 
-                                                      #col.regions =  viridisLite::inferno(200),
+                                                      at = seq(0, high, length.out = 100),
+                                                      # col.regions =  rev(topo.colors(100)),
+                                                      # col.regions = cm_ocean_palette,
+                                                      # col.regions =  viridisLite::inferno(200),
+                                                      col.regions =  colorRampPalette(c("blue4", "dodgerblue2", "cyan2", "green4", "yellow", "orange", "firebrick1"))(100),
                                                       colorkey = list(space = "right", 
                                                                       length = 0.5, 
                                                                       height = 0.75,
@@ -1332,7 +1997,9 @@ Mean_Season_monsoon_SDM_plot
 
 
 # Save for ensemble modelling
-writeRaster(seasonal_means_stack_2, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_seasons2_means_rev_mp.tif", overwrite = TRUE)
+# writeRaster(seasonal_means_stack_2, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_seasons2_means_rev_mp.tif", overwrite = TRUE)
+
+writeRaster(seasonal_means_stack_2, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_seasons2_means_rev_mp_crwPA.tif", overwrite = TRUE)
 
 
 
@@ -1367,7 +2034,7 @@ for (season in seasons) {
 
 seasonal_means_stack_4
 
-plot(seasonal_means_stack_4[[4]], range = c(0, 1), col = colorRampPalette(c("blue4", "dodgerblue2", "cyan2", "green4", "yellow", "orange", "firebrick1"))(100))
+plot(seasonal_means_stack_4, range = c(0, 1), col = colorRampPalette(c("blue4", "dodgerblue2", "cyan2", "green4", "yellow", "orange", "firebrick1"))(100))
 
 Mean_Season_quartal_SDM_plot <-  rasterVis::levelplot(seasonal_means_stack_4,
                                                       layout=c(4, 1),
@@ -1391,7 +2058,9 @@ Mean_Season_quartal_SDM_plot <-  rasterVis::levelplot(seasonal_means_stack_4,
 Mean_Season_quartal_SDM_plot
 
 
-writeRaster(seasonal_means_stack_4, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_seasons4_means_rev_mp.tif", overwrite = TRUE)
+# writeRaster(seasonal_means_stack_4, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_seasons4_means_rev_mp.tif", overwrite = TRUE)
+
+writeRaster(seasonal_means_stack_4, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_seasons4_means_rev_mp_crwPA.tif", overwrite = TRUE)
 
 
 

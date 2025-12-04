@@ -17,11 +17,29 @@ source("R/00_Helper_Functions.R")
 
 # locs <- readRDS("data/input/locs_ani_crw_customintrp_PA_sim10.rds")
 # 3 to 7 day interpolated tracks (3 for Spota and 7 for double tagged individuals with PAT tags)
-locs <- readRDS("data/input/locs_ani_crw_customintrp_3to7days_PA_sim10.rds")
 
-locs <- readRDS("data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld_chl.rds")
+locs <- readRDS("data/input/locs_ani_mp_customintrp_daily_PA_sim50.rds")
+
+locs <- readRDS("data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld_chl_wz.rds")
 str(locs)
 sf::st_crs(locs)
+
+locs |> 
+  dplyr::group_by(PA) |> 
+  dplyr::summarise(n())
+
+max(locs$date)
+
+locs |> 
+  dplyr::group_by(id) |> 
+  dplyr::summarise(
+    n_pres = sum(PA == 1, na.rm = TRUE),
+    n_abs  = sum(PA == 0, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(desc(n_pres)) |> 
+  print(n=100)
+
 
 
 # fix ccords
@@ -105,6 +123,8 @@ locs1 <- locs |>
   dplyr::filter(replicate <= 30 | replicate == 0) |>  # keep first 30 reps + presences
   as.data.frame()
 
+locs1 |> dplyr::group_by(PA) |> 
+  dplyr::summarise(N= n())
 
 max(locs1$replicate)
 
@@ -135,8 +155,8 @@ terra::plot(terra::vect(sims_a[, c("x", "y")],
 
 ## clip absences to extent of presences
 
-pres_sf <- st_as_sf(track_p, coords = c("lon","lat"), crs = 4326, remove = FALSE)
-abs_sf  <- st_as_sf(sims_a,  coords = c("lon","lat"), crs = 4326, remove = FALSE)
+pres_sf <- sf::st_as_sf(track_p, coords = c("lon","lat"), crs = 4326, remove = FALSE)
+abs_sf  <- sf::st_as_sf(sims_a,  coords = c("lon","lat"), crs = 4326, remove = FALSE)
 
 
 hull <- pres_sf |>
@@ -155,7 +175,7 @@ hull_proj <- hull |>
 
 # 3) Buffer by 100 km (dist is in metres in projected CRS)
 hull_buf_proj <- hull_proj |>
-  sf::st_buffer(dist = 1000000)
+  sf::st_buffer(dist = 100000)
 
 # 4) Back to WGS84 for plotting/joins if needed
 hull_buf <- hull_buf_proj |>
@@ -200,7 +220,7 @@ track_p_chck <- dynamicSDM::spatiotemp_check(
 )
 
 sims_a_chck <- dynamicSDM::spatiotemp_check(
-  sims_a,
+  sims_a_clip,
   na.handle = "exclude", # NAs in coordinates or dates 
   duplicate.handle = "exclude", #will deal with those during thinning preocedures
   coord.handle =  "exclude",
@@ -376,6 +396,8 @@ bias_results2
 bias_results2$Plots[4]
 
 
+saveRDS(bias_results2, "outputs/tests/Bias_Results_Presences_sim30_mp_dynamicSDM.rds")
+
 # Option a: Thinning absences by removing same days removed from presences --------
 
 # keys of ID×day rows we REMOVED from presences --> to remove the asscoaiated absences 
@@ -471,7 +493,7 @@ get_k <- function(d) {
   if (is.finite(k)) as.integer(k) else NA_integer_
 }
 
-sims_abs_thin_split <- sims_a_filtered |>
+sims_abs_thin_id <- sims_a_filtered |>
   dplyr::group_split(id_split) |>
   purrr::map_dfr(\(d) {
     
@@ -528,7 +550,7 @@ bias_results_a1 <- dynamicSDM::spatiotemp_bias(occ.data = sims_abs_thin_id,
                                  plot = TRUE,
                                  spatial.method = "core",
                                  centroid = cent_sf,
-                                 radius = 0.5,
+                                 radius = 0.25,
                                  prj = "EPSG:3577"
                                  #prj = "+proj=longlat +datum=WGS84"
 )
@@ -536,16 +558,18 @@ bias_results_a1 <- dynamicSDM::spatiotemp_bias(occ.data = sims_abs_thin_id,
 
 
 
+
 bias_results_a1
 
 
+saveRDS(bias_results_a1, "outputs/tests/Bias_Results_Absences_sim30_mp_dynamicSDM.rds")
 
 
 locs_thinned_PA <- dplyr::bind_rows(track_pres_thin_id, sims_abs_thin_id) |> 
   dplyr::arrange(id, rep, date)
 
 glimpse(locs_thinned_PA)
-
+str(locs_thinned_PA)
 
 locs_thinned_PA |> 
   dplyr::group_by(id) |> 
@@ -561,10 +585,14 @@ locs_thinned_PA |>
   dplyr::group_by(PA) |> 
   dplyr::summarise(N = n())
 
+mapview::mapview(locs_thinned_PA |> sf::st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE))
+
 
 ### ---> decide what approach to go with:
 # a) absences thinned the same way which results in less than 10 reps per id/date 
 # b) only cull absecnces based on teh oens deleted in presences and use weights instead; preserved 1:10 ratio and will be it ba;lanced 
+
+## --> we go with absences thinned per ID 
 
 
 

@@ -25,9 +25,9 @@ source("R/00_Helper_Functions.R")
 # Import DATA -------------------------------------------------------------
 
 
-model_dt <- readRDS("data/processed/model_input_data_processed.rds")
+model_input <- readRDS("data/processed/model_input_data_processed_crwPA.rds")
 
-model <- readRDS("models/objects/Tracks_GAMM_final_Model_mp.rds")
+model <- readRDS("models/objects/Tracks_GAMM_final_Model_mp_crwPA.rds")
 
 input_list <- monthly_stacks_lst_0.1_trans
 input_list[[1]]
@@ -54,12 +54,12 @@ vars <- colnames(env_train)
 stopifnot(length(vars) > 0)
 
 compute_mess <- function(spatr, env_tbl) {
-  preds_r <- raster::stack(spatr)          # dismo::mess expects Raster*
+  preds_r <- raster::stack(spatr)         
   dismo::mess(preds_r, env_tbl) |>
     terra::rast()
 }
 
-# onky month present in training data range 
+# only month present in training data range 
 
 input_list <- lapply(input_list, function(stack) {
   stack[[relevant_vars]] # Extract layers that match the model variables
@@ -152,6 +152,10 @@ plot(mess_mean_calendar, range = c(-300, 0))
 
 
 
+mess_mean_climate <- terra::app(mess_mean_calendar, fun = mean, na.rm = TRUE)
+mess_mean_climate
+plot(mess_mean_climate)
+
 
 seasons_2 <- c("Monsoon", "Dry")
 
@@ -225,11 +229,23 @@ plot(seasonal_mess_stack_4, range = c(-300, 0))
 
 # Save  -------------------------------------------------------------------
 
-writeRaster(mess_monthly_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_monthly_stack.tif", overwrite = TRUE)
+# writeRaster(mess_mean_climate, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_mean_stack.tif", overwrite = TRUE)
+# 
+# writeRaster(mess_monthly_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_monthly_stack.tif", overwrite = TRUE)
+# 
+# writeRaster(mess_mean_calendar, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_monthly_means.tif", overwrite = TRUE)
+# 
+# writeRaster(seasonal_mess_stack_2, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_seasons_2.tif", overwrite = TRUE)
+# 
+# writeRaster(seasonal_mess_stack_4, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_seasons_4.tif", overwrite = TRUE)
 
-writeRaster(mess_mean_calendar, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_monthly_means.tif", overwrite = TRUE)
+writeRaster(mess_mean_climate, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_mean_stack_crwPA.tif", overwrite = TRUE)
 
-writeRaster(seasonal_mess_stack_2, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_seasons_2.tif", overwrite = TRUE)
+writeRaster(mess_monthly_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_monthly_stack_crwPA.tif", overwrite = TRUE)
 
-writeRaster(seasonal_mess_stack_4, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_seasons_4.tif", overwrite = TRUE)
+writeRaster(mess_mean_calendar, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_monthly_means_crwPA.tif", overwrite = TRUE)
+
+writeRaster(seasonal_mess_stack_2, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_seasons_2_crwPA.tif", overwrite = TRUE)
+
+writeRaster(seasonal_mess_stack_4, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Mess_map_gamm_track_mp_seasons_4_crwPA.tif", overwrite = TRUE)
 

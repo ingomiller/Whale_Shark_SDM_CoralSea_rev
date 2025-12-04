@@ -28,7 +28,7 @@ nc_files
 
 ## Create a raster stack containing all the daily Chlorophyll data
 
-mld_stack <- terra::rast(nc_files[6:22], subds = "mlotst")
+mld_stack <- terra::rast(nc_files, subds = "mlotst")
 mld_stack
 
 # add dates as names from time stamps
@@ -52,8 +52,18 @@ tracks <- readRDS("data/work_files/Tracks_PA_w_dynSDM_10_raw_2010_2025_bathy_dis
 tracks <- readRDS("data/work_files/Tracks_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr.rds")
 tracks <- readRDS("data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr.rds")
 
+
+tracks <- readRDS( "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist_sst_uv.rds")
+
+
+tracks <- readRDS( "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy_dist_sst_uv.rds")
+
+tracks <- readRDS("data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy_dist_sst_uv.rds")
+
 dt <- sight
 dt <- tracks
+
+str(dt)
 
 dt.sf <- dt |> sf::st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE) |> 
   dplyr::mutate(Date = base::as.Date(date))
@@ -89,7 +99,7 @@ dt_mld |>
 # check NAs
 dt_mld |>
   dplyr::filter(is.na(mltost)) |> 
-  dplyr::select(date, lat, lon, uv) |> 
+  dplyr::select(date, lat, lon, mltost) |> 
   print(n=50)
 
 # Save  -------------------------------------------------------------------
@@ -107,5 +117,12 @@ saveRDS(tracks_mld, "data/work_files/Tracks_PA_w_dynSDM_10_raw_2010_2025_bathy_d
 saveRDS(tracks_mld, "data/work_files/Tracks_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld.rds")
 saveRDS(tracks_mld, "data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld.rds")
 
+saveRDS(tracks_mld, "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist_sst_uv_mld.rds")
 
+
+
+saveRDS(tracks_mld, "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy_dist_sst_uv_mld.rds")
+
+
+saveRDS(tracks_mld, "data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy_dist_sst_uv_mld.rds")
 

@@ -20,15 +20,23 @@ source("R/00_Helper_Functions.R")
 
 
 # Import DATA -------------------------------------------------------------
+# 
+# 
+# sight <- readRDS("data/processed/Sightings_PA_w_dynSDM_10_2010_2025_extract_processed.rds")
+# sight <- readRDS("data/work_files/Sightings_Validation_data_extract_full_processed.rds")
+
+sight <- readRDS("data/processed/Sightings_PA_w_dynSDM_10_2010_2025_extract_processed_SUPPS_MODEL.rds")
 
 
-sight <- readRDS("data/processed/Sightings_PA_w_dynSDM_10_2010_2025_extract_processed.rds")
+
 sight
 
 
 model_dt <- sight |>
   dplyr::mutate(month = factor(month, levels = sort(unique(month))),  # 1..12 etc.
-                year  = factor(year)) |> 
+                year  = factor(year),
+                dist2000 = dist2000/1000,
+                chl = log(chl)) |> 
   sf::st_drop_geometry() |> 
   as.data.frame()
 
@@ -44,7 +52,7 @@ swd <- SDMtune::SWD(
   species = "Rhincodon_typus",
   coords = model_dt |> dplyr::select(lon, lat) |> as.data.frame(),
   data = model_dt |>
-    dplyr::select(thetao, mltost, chl, uv, wz, depth, slope, dist2000, month) |> as.data.frame(),
+    dplyr::select(thetao, mltost, chl, uv, wz, depth, slope, roughness, dist2000, month) |> as.data.frame(),
   pa = model_dt$PA)
 
 swd
@@ -59,22 +67,22 @@ swd@data
 # swd@data$case_w <- ifelse(swd@pa == 1L, 1, sum(swd@pa == 1L) / sum(swd@pa == 0L))
 
 
-w <- ifelse(swd@pa == 1L,
-            1,
-            sum(swd@pa == 1L) / sum(swd@pa == 0L))
-
-w
-
-
-# Make sure every row has a stable name, and key weights by those names
-base::rownames(swd@data) <- sprintf("r%07d", base::seq_len(base::nrow(swd@data)))
-base::names(w) <- base::rownames(swd@data)
-
-# Store in an attribute (not a column!)
-base::attr(swd@data, "weights_by_row") <- w
-
-
-str(swd@data)
+# w <- ifelse(swd@pa == 1L,
+#             1,
+#             sum(swd@pa == 1L) / sum(swd@pa == 0L))
+# 
+# w
+# 
+# 
+# # Make sure every row has a stable name, and key weights by those names
+# base::rownames(swd@data) <- sprintf("r%07d", base::seq_len(base::nrow(swd@data)))
+# base::names(w) <- base::rownames(swd@data)
+# 
+# # Store in an attribute (not a column!)
+# base::attr(swd@data, "weights_by_row") <- w
+# 
+# 
+# str(swd@data)
 
 
 
@@ -123,23 +131,25 @@ assignInNamespace("trainBRT", patched_trainBRT, ns = "SDMtune")
 # Using Cross Validation Method: ------------------------------------------
 
 # get the blockCV spatial block folds
-sp_blocks <- readRDS("data/processed/BlockCV_spatial_folds.rds")
+blocks <- readRDS("data/processed/BlockCV_spatial_folds_sightings_groups.rds")
+
+blocks <- readRDS("data/processed/BlockCV_spatial_folds_sightings_SUPPS_MODEL.rds")
 
 set.seed(25)
-cv_brt0 <- SDMtune::train(method = "BRT", 
+cv_brt_s0 <- SDMtune::train(method = "BRT", 
                         data = swd,
-                        folds = sp_blocks)
+                        folds = blocks)
 
 
-cv_brt0
+cv_brt_s0
 
-cat("Training AUC: ", auc(cv_brt0))
-cat("Testing AUC: ", auc(cv_brt0, test = TRUE))
-cat("Training TSS: ", tss(cv_brt0))
-cat("Testing TSS: ", tss(cv_brt0, test = TRUE))
+cat("Training AUC: ", SDMtune::auc(cv_brt_s0))
+cat("Testing AUC: ", SDMtune::auc(cv_brt_s0, test = TRUE))
+cat("Training TSS: ", SDMtune::tss(cv_brt_s0))
+cat("Testing TSS: ", SDMtune::tss(cv_brt_s0, test = TRUE))
 
 
-m <- cv_brt0
+m <- cv_brt_s0
 ROCplots <- lapply(seq_len(ncol(m@folds$test)), function(i){
   idx <- m@folds$test[, i]
   test_i <- SDMtune::SWD(
@@ -155,7 +165,7 @@ ROCplots
 
 ## Variable Importance
 
-vi_brt <- varImp(cv_brt0, 
+vi_brt <- varImp(cv_brt_s0, 
                  permut = 10)
 
 vi_brt
@@ -316,7 +326,7 @@ bg_dt <- model_dt |> dplyr::filter(PA == 0)
 bg4cor <- SDMtune::SWD(
   species = "Bgs",
   coords  = bg_dt |> dplyr::select(lon, lat) |> as.data.frame(),
-  data    = bg_dt |> dplyr::select(thetao, mltost, chl, uv, wz, depth, slope, dist2000, month) |> as.data.frame(),
+  data    = bg_dt |> dplyr::select(thetao, mltost, chl, uv, wz, depth, slope, roughness, dist2000, month) |> as.data.frame(),
   pa      = bg_dt$PA)
 
 
@@ -330,7 +340,7 @@ SDMtune::corVar(bg4cor,
                 cor_th = 0.7)
 
 
-cv_brt1 <- SDMtune::varSel(cv_brt0, 
+cv_brt_s1 <- SDMtune::varSel(cv_brt_s0, 
                          metric = "tss", 
                          test = TRUE, 
                          bg4cor = bg4cor,
@@ -338,10 +348,10 @@ cv_brt1 <- SDMtune::varSel(cv_brt0,
                          cor_th = 0.7,
                          permut = 10)
 
-cv_brt1
+cv_brt_s1
 
 
-vi_brt <- SDMtune::varImp(cv_brt1, 
+vi_brt <- SDMtune::varImp(cv_brt_s1, 
                              permut = 10)
 vi_brt
 SDMtune::plotVarImp(vi_brt)
@@ -460,7 +470,7 @@ SDMtune::plotResponse(m,
 # Fine tune model  --------------------------------------------------------
 
 
-SDMtune::getTunableArgs(cv_brt1)
+SDMtune::getTunableArgs(cv_brt_s1)
 
 h_brt <- list(
   n.trees           = c(2500L, 5000L, 7500L, 10000L, 15000L),
@@ -475,11 +485,11 @@ h_brt <- list(
 
 
 
-cv_brt2 <- SDMtune::optimizeModel(cv_brt1, 
+cv_brt_s2 <- SDMtune::optimizeModel(cv_brt_s1, 
                                 hypers = h_brt, 
                                 metric = "tss",
-                                pop = 30,
-                                gen = 10,
+                                pop = 20,
+                                gen = 5,
                                 keep_best = 0.4,
                                 keep_random = 0.2,
                                 mutation_chance = 0.4,
@@ -489,33 +499,33 @@ cv_brt2 <- SDMtune::optimizeModel(cv_brt1,
                                 )
 
 
-cv_brt2
+cv_brt_s2
 
-summary(cv_brt2)
-slotNames(cv_brt2)
+summary(cv_brt_s2)
+slotNames(cv_brt_s2)
 
-cv_brt2@results
+cv_brt_s2@results
 #ordered 
-cv_brt2@results[order(-cv_brt2@results$test_TSS), ]
+cv_brt_s2@results[order(-cv_brt_s2@results$test_TSS), ]
 
 # Index of the best model in the experiment
-index <- terra::which.max(cv_brt2@results$test_TSS)
-index
+# index <- terra::which.max(cv_brt_s2@results$test_TSS)
+index <- 3
 
 
-best_cv_brt2 <- cv_brt2@models[[index]]
-best_cv_brt2
-cv_brt2@results[index, ]
+best_cv_brt_s2 <- cv_brt_s2@models[[index]]
+best_cv_brt_s2
+cv_brt_s2@results[index, ]
 
 
 
-best_cv_brt2
-cat("Training AUC: ", SDMtune::auc(best_cv_brt2))
-cat("Testing AUC: ", SDMtune::auc(best_cv_brt2, test = TRUE))
-cat("Training TSS: ", SDMtune::tss(best_cv_brt2))
-cat("Testing TSS: ", SDMtune::tss(best_cv_brt2, test = TRUE))
+best_cv_brt_s2
+cat("Training AUC: ", SDMtune::auc(best_cv_brt_s2))
+cat("Testing AUC: ", SDMtune::auc(best_cv_brt_s2, test = TRUE))
+cat("Training TSS: ", SDMtune::tss(best_cv_brt_s2))
+cat("Testing TSS: ", SDMtune::tss(best_cv_brt_s2, test = TRUE))
 
-m <- best_cv_brt2
+m <- best_cv_brt_s2
 ROCplots <- lapply(seq_len(ncol(m@folds$test)), function(i){
   idx <- m@folds$test[, i]
   test_i <- SDMtune::SWD(
@@ -617,21 +627,21 @@ ROCplots
 
 # Removing variables with low importance  --------------------------------
 
-SDMtune::varImp(best_cv_brt2, 
+SDMtune::varImp(best_cv_brt_s2, 
                 permut = 10)
 
-
-cv_brt3 <- SDMtune::reduceVar(best_cv_brt2, 
-                            th = 5, 
+best_cv_brt_s2
+cv_brt_s3 <- SDMtune::reduceVar(best_cv_brt_s2, 
+                            th = 1, 
                             metric = "tss", 
                             test = TRUE, 
                             permut = 10, 
                             use_jk = TRUE)
 
-cat("Testing TSS before: ", SDMtune::tss(best_cv_brt2, test = TRUE))
-cat("Testing TSS after: ", SDMtune::tss(cv_brt3, test = TRUE))
-cat("Testing AUC before: ", SDMtune::auc(best_cv_brt2, test = TRUE))
-cat("Testing AUC after: ", SDMtune::auc(cv_brt3, test = TRUE))
+cat("Testing TSS before: ", SDMtune::tss(best_cv_brt2_sight, test = TRUE))
+cat("Testing TSS after: ", SDMtune::tss(cv_brt3_sight, test = TRUE))
+cat("Testing AUC before: ", SDMtune::auc(best_cv_brt2_sight, test = TRUE))
+cat("Testing AUC after: ", SDMtune::auc(cv_brt3_sight, test = TRUE))
 
 cv_brt3
 
@@ -641,16 +651,16 @@ cv_brt3
 # Get the FINAL MODEL -----------------------------------------------------
 
 set.seed(25)
-final_brt <- SDMtune::combineCV(cv_brt3)
-final_brt
+final_brt_sight <- SDMtune::combineCV(best_cv_brt_s2)
+final_brt_sight
 
-SDMtune::plotROC(final_brt)
-final_brt@model
-
-
+SDMtune::plotROC(final_brt_sight)
+final_brt_sight@model
 
 
-m <- cv_brt3
+
+
+m <- best_cv_brt_s2
 m
 vi_brt <- SDMtune::varImp(m, 
                           permut = 10)
@@ -658,103 +668,207 @@ vi_brt
 SDMtune::plotVarImp(vi_brt)
 
 
-
-SDMtune::plotResponse(m, 
-                      var = "thetao", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+P_sst <- SDMtune::plotResponse(m, 
+                               var = "thetao", 
+                               type = "cloglog", 
+                               only_presence = TRUE, 
+                               marginal = TRUE, 
+                               rug = TRUE,
+                               fun = mean,
+                               color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  labs(x = expression("sst ("*degree*"C)")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "uv", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+P_chl <- SDMtune::plotResponse(m, 
+                               var = "chl", 
+                               type = "cloglog", 
+                               only_presence = TRUE, 
+                               marginal = TRUE, 
+                               rug = TRUE,
+                               fun = mean,
+                               color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  #scale_x_log10() +
-  theme_bw()
+  labs(x = expression("chl (log(mg m"^{-3}*"))")) +
+  # scale_x_log10() +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "wz", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+P_chl
+
+P_uv <- SDMtune::plotResponse(m, 
+                              var = "uv", 
+                              type = "cloglog", 
+                              only_presence = TRUE, 
+                              marginal = TRUE, 
+                              rug = TRUE,
+                              fun = mean,
+                              color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  labs(x = expression("uv (m s"^{-1}*")")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "mltost", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = median,
-                      color = "steelblue") +
+P_wz <- SDMtune::plotResponse(m, 
+                              var = "wz", 
+                              type = "cloglog", 
+                              only_presence = TRUE, 
+                              marginal = TRUE, 
+                              rug = TRUE,
+                              fun = mean,
+                              color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  scale_x_log10() +
-  theme_bw()
+  labs(x = expression("wz (m s"^{-1}*")")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "depth", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+P_mld <- SDMtune::plotResponse(m, 
+                               var = "mltost", 
+                               type = "cloglog", 
+                               only_presence = TRUE, 
+                               marginal = TRUE, 
+                               rug = TRUE,
+                               fun = median,
+                               color = "steelblue") +
+  ggplot2::scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "mld (m)") +
+  # scale_x_log10() +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
+
+P_mld
+
+P_depth <- SDMtune::plotResponse(m, 
+                                 var = "depth", 
+                                 type = "cloglog", 
+                                 only_presence = TRUE, 
+                                 marginal = TRUE, 
+                                 rug = TRUE,
+                                 fun = mean,
+                                 color = "steelblue") +
+  labs(x = "depth (m)") +
   ggplot2::scale_y_continuous(limits = c(-0.05, 1)) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "slope", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+P_slope <- SDMtune::plotResponse(m, 
+                                 var = "slope", 
+                                 type = "cloglog", 
+                                 only_presence = TRUE, 
+                                 marginal = TRUE, 
+                                 rug = TRUE,
+                                 fun = mean,
+                                 color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  labs(x = expression("slope ("*degree*")")) +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "dist2000", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "steelblue") +
+P_dist <- SDMtune::plotResponse(m,
+                                var = "dist2000",
+                                type = "cloglog",
+                                only_presence = TRUE,
+                                marginal = TRUE,
+                                rug = TRUE,
+                                fun = mean,
+                                color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  labs(x = "dist2000 (km)") +
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
-SDMtune::plotResponse(m, 
-                      var = "month", 
-                      type = "cloglog", 
-                      only_presence = TRUE, 
-                      marginal = TRUE, 
-                      rug = TRUE,
-                      fun = mean,
-                      color = "orange") +
+# P_dist200 <- SDMtune::plotResponse(m,
+#                                 var = "dist200",
+#                                 type = "cloglog",
+#                                 only_presence = TRUE,
+#                                 marginal = TRUE,
+#                                 rug = TRUE,
+#                                 fun = mean,
+#                                 color = "steelblue") +
+#   ggplot2::scale_y_continuous(limits = c(0, 1)) +
+#   labs(x = "dist200 (km)") +
+#   theme_bw() +
+#   theme(axis.title = element_text(size = 10),
+#         axis.text = element_text(size = 8))
+
+# P_rough <- SDMtune::plotResponse(m,
+#                                 var = "roughness",
+#                                 type = "cloglog",
+#                                 only_presence = TRUE,
+#                                 marginal = TRUE,
+#                                 rug = TRUE,
+#                                 fun = mean,
+#                                 color = "steelblue") +
+#   ggplot2::scale_y_continuous(limits = c(0, 1)) +
+#   labs(x = "roughness") +
+#   theme_bw() +
+#   theme(axis.title = element_text(size = 10),
+#         axis.text = element_text(size = 8))
+
+# P_seam <- SDMtune::plotResponse(m,
+#                                 var = "dist_seamount",
+#                                 type = "cloglog",
+#                                 only_presence = TRUE,
+#                                 marginal = TRUE,
+#                                 rug = TRUE,
+#                                 fun = mean,
+#                                 color = "steelblue") +
+#   ggplot2::scale_y_continuous(limits = c(0, 1)) +
+#   labs(x = "seamount (m)") +
+#   theme_bw() +
+#   theme(axis.title = element_text(size = 10),
+#         axis.text = element_text(size = 8))
+
+
+P_month <- SDMtune::plotResponse(m, 
+                                 var = "month", 
+                                 type = "cloglog", 
+                                 only_presence = TRUE, 
+                                 marginal = TRUE, 
+                                 rug = TRUE,
+                                 fun = mean,
+                                 color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8))
 
+P_month
+
+
+
+marginal_plots <- (
+  P_depth +
+    P_dist +
+    # P_dist200 +
+    # P_seam +
+    P_sst + 
+    P_chl + 
+    P_uv +
+    P_mld + 
+    P_wz + 
+    P_slope +
+    # P_rough +
+    P_month) +
+  patchwork::plot_layout(ncol = 3, guides = "collect", axes = "collect") &
+  ggplot2::labs(y = "Rel. Habitat Suitability")
+
+marginal_plots
 
 
 # get final model 
 
 
-map <- SDMtune::predict(final_brt,
+map <- SDMtune::predict(final_brt_sight,
                         data = predictors_mean,
                         type = "cloglog",
                         const = (data.frame(month = "0")))
@@ -780,7 +894,7 @@ SDMtune::plotPA(map,
 
 
 
-SDMtune::modelReport(final_brt, 
+SDMtune::modelReport(final_brt_sight, 
                      type = "cloglog", 
                      folder = "models/objects/Sightings_BRT_tuned", 
                      test = NULL, 
@@ -791,8 +905,8 @@ SDMtune::modelReport(final_brt,
 
 
 
-saveRDS(cv_brt3, "models/objects/Sightings_BRT_CV_Models_SDMtune.rds")
-saveRDS(final_brt, "models/objects/Sightings_BRT_final_Model_SDMtune.rds")
+saveRDS(best_cv_brt_s2, "models/objects/Sightings_BRT_CV_Models_SDMtune_SUPPS_MODEL.rds")
+saveRDS(final_brt_sight, "models/objects/Sightings_BRT_final_Model_SDMtune_SUPPS_MODEL.rds")
 
 
 
@@ -848,7 +962,7 @@ oof_boyce_from_cv <- function(cv_model, type = "cloglog", use_test_background = 
 
 
 # --- run it on best CV sightings model ---
-res_boyce <- oof_boyce_from_cv(cv_brt3, type = "cloglog", use_test_background = TRUE)
+res_boyce <- oof_boyce_from_cv(best_cv_brt_s2, type = "cloglog", use_test_background = TRUE)
 res_boyce$p_value
 res_boyce$boyce
 res_boyce$rho
@@ -919,7 +1033,7 @@ ggplot(df_plot, aes(x = HS, y = PE)) +
 relevant_vars <- names(final_brt@data@data)
 relevant_vars
 
-input_list <- monthly_stacks_lst_0.1
+input_list <- monthly_stacks_lst_0.1_trans
 
 
 
@@ -938,15 +1052,15 @@ if (anyNA(idx)) {
           paste(as.character(want[is.na(idx)]), collapse = ", "))
 }
 
-monthly_predictors   <- monthly_stacks_lst_0.1[idx[!is.na(idx)]]
+monthly_predictors   <- monthly_stacks_lst_0.1_trans[idx[!is.na(idx)]]
 monthly_dates  <- avail[idx[!is.na(idx)]]
 
 
-e <- terra::ext(c(136, 170, -40, -5))
+e <- terra::ext(c(140, 170, -40, 0))
 e
 tictoc::tic("Monthly dynamic predictions took: " )
 monthly_predictions_stack <- sdmtune_predict_monthly(
-  model = final_brt,
+  model = final_brt_sight,
   monthly_list = monthly_predictors,
   dates = monthly_dates,  # already "YYYY-MM-01"
   type = "cloglog",
@@ -967,7 +1081,7 @@ SDMtune::plotPred(monthly_predictions_stack[[179]],
                   colorramp = c("#2c7bb6", "#abd9e9", "#ffffbf", "#fdae61", "#d7191c"))
 
 
-ths <- SDMtune::thresholds(final_m, 
+ths <- SDMtune::thresholds(final_brt_sight, 
                            type = "cloglog")
 
 ths
@@ -1025,6 +1139,102 @@ plot(monthly_means_stack[[12]], range = c(0, 1))
 writeRaster(monthly_means_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Sightings_BRT_monthly_means_rev.tif", overwrite = TRUE)
 
 
+
+
+### Monsoon vs Trade Wind::
+
+
+
+seasons_2 <- c("Monsoon", "Dry")
+
+# Define the months corresponding to each season
+season_months_2 <- list(
+  Monsoon = c("Nov", "Dec", "Jan", "Feb", "Mar", "Apr"),
+  Dry = c("May", "Jun", "Jul", "Aug", "Sep", "Oct")
+)
+
+
+# Initialize an empty stack to store seasonal means
+seasonal_means_stack_2 <- terra::rast()
+
+# Loop through each season
+for (season in seasons_2) {
+  # Subset the monthly means stack to include only the layers corresponding to the current season
+  season_layers <- season_months_2[[season]]
+  season_stack <- monthly_means_stack[[season_layers]]
+  
+  # Calculate the mean across the layers for the current season
+  seasonal_mean <- terra::app(season_stack, fun = mean, na.rm = TRUE)
+  
+  # Assign a meaningful name to the seasonal mean
+  names(seasonal_mean) <- paste(season,"Mean", sep = "_")
+  
+  # Add the seasonal mean raster to the stack
+  seasonal_means_stack_2 <- c(seasonal_means_stack_2, seasonal_mean)
+}
+
+
+seasonal_means_stack_2
+
+# seasonal_means_stack_2 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_BRT_seasons2_means_rev_mp_crwPA.tif")
+
+plot(seasonal_means_stack_2, range = c(0, 1))
+plot(seasonal_means_stack_2, range = c(0, 1), xlim = c(140, 170), ylim = c(-40, 0), axes =FALSE, legend =FALSE)
+
+plot(seasonal_means_stack_2, range = c(0, 1), col = colorRampPalette(c("blue4", "dodgerblue2", "cyan2", "green4", "yellow", "orange", "firebrick1"))(100))
+
+
+
+
+
+# writeRaster(seasonal_means_stack_2, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_BRT_seasons2_means_rev_mp_crwPA.tif", overwrite = TRUE)
+
+# writeRaster(seasonal_means_stack_2, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_BRT_seasons2_means_rev_mp_crwPA_RANDOM_FOLDS_CV.tif", overwrite = TRUE)
+
+
+
+
+seasons <- c("Q1", "Q2", "Q3", "Q4")
+season_months <- list(
+  Q1 = c("Jan", "Feb", "Mar"),
+  Q2 = c("Apr", "May", "Jun"),
+  Q3 = c("Jul", "Aug", "Sep"),
+  Q4 = c("Oct", "Nov", "Dec"))
+
+
+# Initialize an empty stack to store seasonal means
+seasonal_means_stack_4 <- terra::rast()
+
+# Loop through each season
+for (season in seasons) {
+  # Subset the monthly means stack to include only the layers corresponding to the current season
+  season_layers <- season_months[[season]]
+  season_stack <- monthly_means_stack[[season_layers]]
+  
+  # Calculate the mean across the layers for the current season
+  seasonal_mean <- terra::app(season_stack, fun = mean, na.rm = TRUE)
+  
+  # Assign a meaningful name to the seasonal mean
+  names(seasonal_mean) <- paste(season,"Mean", sep = "_")
+  
+  # Add the seasonal mean raster to the stack
+  seasonal_means_stack_4 <- c(seasonal_means_stack_4, seasonal_mean)
+}
+
+
+seasonal_means_stack_4
+
+plot(seasonal_means_stack_4, range = c(0, 1), col = colorRampPalette(c("blue4", "dodgerblue2", "cyan2", "green4", "yellow", "orange", "firebrick1"))(100))
+plot(seasonal_means_stack_4[[4]], range = c(0, 1), col = colorRampPalette(c("blue4", "dodgerblue2", "cyan2", "green4", "yellow", "orange", "firebrick1"))(100))
+
+
+
+# writeRaster(seasonal_means_stack_4, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_BRT_seasons4_means_rev_mp_crwPA.tif", overwrite = TRUE)
+
+
+
+
+# writeRaster(seasonal_means_stack_4, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_BRT_seasons4_means_rev_mp_crwPA_RANDOM_FOLDS_CV.tif", overwrite = TRUE)
 
 
 

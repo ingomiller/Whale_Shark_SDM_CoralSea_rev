@@ -32,7 +32,7 @@ nc_files
 
 ## Create a raster stack containing all the daily Chlorophyll data
 
-chl_stack <- terra::rast(nc_files[6:21], subds = "CHL")
+chl_stack <- terra::rast(nc_files, subds = "CHL")
 chl_stack
 
 # add dates as names from time stamps
@@ -57,6 +57,14 @@ tracks <- readRDS("data/work_files/Tracks_PA_w_dynSDM_10_raw_2010_2025_bathy_dis
 
 tracks <- readRDS("data/work_files/Tracks_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld.rds")
 tracks <- readRDS("data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld.rds")
+
+tracks <- readRDS( "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist_sst_uv_mld.rds")
+
+
+tracks <- readRDS( "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy_dist_sst_uv_mld.rds")
+
+
+tracks <- readRDS("data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy_dist_sst_uv_mld.rds")
 
 dt <- sight
 dt <- tracks
@@ -107,7 +115,7 @@ dt_chl |>
 # check NAs
 dt_chl |>
   dplyr::filter(is.na(chl)) |> 
-  dplyr::select(date, lat, lon, uv) |> 
+  dplyr::select(date, lat, lon, chl) |> 
   print(n=50)
 
 
@@ -126,4 +134,15 @@ saveRDS(tracks_chl, "data/work_files/Tracks_PA_w_dynSDM_10_raw_2010_2025_bathy_d
 
 saveRDS(tracks_chl, "data/work_files/Tracks_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld_chl.rds")
 saveRDS(tracks_chl, "data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld_chl.rds")
+
+saveRDS(tracks_chl, "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist_sst_uv_mld_chl.rds")
+
+
+
+
+saveRDS(tracks_chl, "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy_dist_sst_uv_mld_chl.rds")
+
+
+saveRDS(tracks_chl, "data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy_dist_sst_uv_mld_chl.rds")
+
 

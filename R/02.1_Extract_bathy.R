@@ -23,6 +23,15 @@ str(sight)
 
 locs <- readRDS("data/processed/Tracking_PA_w_dynSDM_10_raw_2010_2025.rds")
 locs <- readRDS("data/processed/Tracking_PA_3days_w_dynSDM_10_raw_2010_2025.rds")
+
+
+# final dataset
+locs <- readRDS("data/work_files/Tracks_mp_sims_30_thinned_2018_2025_final.rds")
+
+locs <- readRDS( "data/work_files/Tracks_mp_sims_30_thinned_2018_2025_final_extA_10d.rds")
+
+locs <- readRDS("data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final.rds")
+
 str(locs)
 
 glimpse(locs)
@@ -31,9 +40,9 @@ unique(locs$Tag_type)
 
 tracks <- locs
 
-track_p <- locs |> 
-  dplyr::filter(PA == 1) |> 
-  dplyr::filter(Tag_type %in% c("SPLASH10", "PSAT", "PSAT_SPOT")) |> 
+track_p <- locs |>
+  dplyr::filter(PA == 1) |>
+  dplyr::filter(Tag_type %in% c("SPLASH10", "PSAT", "PSAT_SPOT", "SPOT")) |>
   sf::st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE)
 
 v <- terra::vect(track_p)
@@ -79,7 +88,7 @@ terra::plot(
   #breaks = 10,
   legend = TRUE
 )
-land_mask <- bathy_Gebco >= 0
+# land_mask <- bathy_Gebco >= 0
 terra::plot(land_mask, add = TRUE, col = c("#00000000", "grey10"), legend = FALSE)
 terra::points(v, pch = 21, cex = 0.25, col = "white", bg = NA)
 
@@ -104,7 +113,7 @@ rough30_d <- terra::terrain(bathy30_d, v = "roughness", neighbors = 8)
 
 Rough_Papua100 <- terra::terrain(bathy_Papua_100, v = "roughness", neighbors = 8)
 
-Rough_Gebco <- raster::terrain(bathy_Gebco, v = "roughness", , neighbors = 8)
+Rough_Gebco <- terra::terrain(bathy_Gebco, v = "roughness", neighbors = 8)
 
 
 
@@ -117,7 +126,8 @@ Rough_Gebco <- raster::terrain(bathy_Gebco, v = "roughness", , neighbors = 8)
 # input data
 # dt <- sight
 dt <- tracks
-dt.v <- terra::vect(dt, geom = c("lon", "lat"), crs = "EPSG:4326")
+dt
+dt.v <- terra::vect(dt)
 
 # stepwise extractions 
 dt$bathy30_a <- terra::extract(bathy30_a, dt.v, method = "simple", ID = FALSE)[,1]
@@ -179,7 +189,14 @@ track_bathy <- dt_merged
 ## save temporary working file for next extractions
 
 # saveRDS(sight_bathy, "data/work_files/Sightings_PA_w_dynSDM_10_raw_2010_2025_bathy.rds")
-saveRDS(track_bathy, "data/work_files/Tracks_PA_w_dynSDM_10_raw_2010_2025_bathy.rds")
+# saveRDS(track_bathy, "data/work_files/Tracks_PA_w_dynSDM_10_raw_2010_2025_bathy.rds")
+saveRDS(track_bathy, "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy.rds")
+
+saveRDS(track_bathy, "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy.rds")
+
+
+
+saveRDS(track_bathy, "data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy.rds")
 
 
 

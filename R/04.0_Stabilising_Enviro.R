@@ -11,7 +11,7 @@ sims_env <- readRDS("C:/Users/jc563815/OneDrive - James Cook University/02_PhD/0
 
 
 sims_env <- readRDS("data/work_files/Tracks_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld_chl.rds")
-sims_env <- readRDS("data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld_chl.rds")
+sims_env <- readRDS("data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_sst_uv.curr_mld_chl_wz.rds")
 str(sims_env)
 
 
@@ -42,7 +42,7 @@ sims_env |>
 #   dplyr::mutate(dist2000 = dist2000/1000)
 
 sims_env <- sims_env |> 
-  tidyr::drop_na(Depth, Slope, Roughness, thetao, chl, mltost, uv) |>
+  tidyr::drop_na(Depth, Slope, Roughness, thetao, chl, mltost, uv, Wz) |>
   dplyr::filter(Depth < 0) |>
   dplyr::group_by(id_split) |> 
   dplyr::mutate(
@@ -76,16 +76,16 @@ calculate_incremental_stats <- function(data) {
   result <- data.frame(Simulation = integer(),
                        mean_uv = numeric(),
                        sd_uv = numeric(),
-                       # mean_wz = numeric(),
-                       # sd_wz = numeric(),
+                       mean_wz = numeric(),
+                       sd_wz = numeric(),
                        mean_chl = numeric(),
                        sd_chl = numeric(),
                        mean_thetao = numeric(),
                        sd_thetao = numeric(),
                        mean_depth = numeric(),
                        sd_depth = numeric(),
-                       mean_dlope = numeric(),
-                       sd_dlope = numeric(),
+                       mean_slope = numeric(),
+                       sd_slope = numeric(),
                        mean_roughness = numeric(),
                        sd_roughness = numeric(),
                        mean_dist2000 = numeric(),
@@ -102,8 +102,8 @@ calculate_incremental_stats <- function(data) {
       dplyr::summarise(Simulation = i, # Adjust numbering to start from 2
                 mean_uv = mean(uv, na.rm = TRUE),
                 sd_uv = sd(uv, na.rm = TRUE),
-                # mean_wz = mean(wz, na.rm = TRUE),
-                # sd_wz = sd(wz, na.rm = TRUE),
+                mean_wz = mean(Wz, na.rm = TRUE),
+                sd_wz = sd(Wz, na.rm = TRUE),
                 mean_chl = mean(chl, na.rm = TRUE),
                 sd_chl = sd(chl, na.rm = TRUE),
                 mean_thetao = mean(thetao, na.rm = TRUE),
@@ -170,6 +170,18 @@ ggplot(sims_plot_dt |> dplyr::filter(stat == "sd"), aes(x = Simulation, y = valu
        color = "Statistic") +
   theme_bw()
 
+ggplot(sims_plot_dt, aes(x = Simulation, y = value, color = stat)) +
+  geom_line() +
+  geom_vline(xintercept = 30, linetype = "dashed", color = "blue") + # Add vertical line
+  facet_wrap(~variable, scales = "free_y", ncol =2) +
+  # Adding secondary y-axis for standard deviation (sd)
+  scale_y_continuous(sec.axis = sec_axis(~ . * max(sims_plot_dt$value[sims_plot_dt$stat == "sd"]) / max(sims_plot_dt$value[sims_plot_dt$stat != "sd"]), name = "Standard Deviation")) +
+  labs(title = "Tracking data",
+       x = "Number of Simulations",
+       y = "Value",
+       color = "Statistic") +
+  theme_bw()
+
 
 ## for sightings 
 
@@ -193,7 +205,7 @@ head(sight_plot_dt)
 
 ggplot(sight_plot_dt, aes(x = Simulation, y = value, color = stat)) +
   geom_line() +
-  geom_vline(xintercept = 10, linetype = "dashed", color = "blue") + # Add vertical line
+  geom_vline(xintercept = 30, linetype = "dashed", color = "blue") + # Add vertical line
   facet_wrap(~variable, scales = "free_y", ncol =2) +
   labs(title = "Sightings data",
        x = "Number of Simulations",
@@ -258,23 +270,25 @@ print(overall_convergence_point)
 
 absences_Plot_track <- ggplot(sims_plot_dt2, aes(x = Simulation, y = normalised_rate_of_change, color = stat)) +
   geom_line() +
-  geom_vline(xintercept = 30, linetype = "dashed", color = "blue") + # Add vertical line for visualization
+  geom_vline(xintercept = 30, linetype = "dashed", color = "grey20") + # Add vertical line for visualization
   facet_wrap(~variable, scales = "free_y", ncol = 2) +
-  labs(title = "Tracking data: Normalised Rate of Change",
+  labs(
        x = "Number of Simulations",
        y = "Normalised Rate of Change",
        color = "Statistic") +
   # Set custom colors for each stat value
   scale_color_manual(values = c("mean" = "tomato2", "sd" = "skyblue3")) +
   theme_bw() +
-  theme(axis.title = element_text(size = 10),
-        axis.text = element_text(size = 8),
-        title = element_text(size = 12))
+  theme(axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10),
+        strip.text = element_text(size = 10, face = "bold"),
+        legend.position = "none")
+
 
 
 absences_Plot_track
 
-ggsave("Tracking_Absence_Simualtions_50.png", plot = absences_Plot_track, path ="C:/Users/jc563815/OneDrive - James Cook University/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/Data_Analysis/R_workfolder/Output_Plots", scale =1, width = 17, height = 12, units = "cm", dpi = 300)
+ggsave("Tracking_Absence_Simualtions_mp_50.png", plot = absences_Plot_track, path ="outputs/figures/", scale =1, width = 17, height = 18, units = "cm", dpi = 600)
 
 
 ## for sightings 

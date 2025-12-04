@@ -192,6 +192,9 @@ rough_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSha
 dist_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/dist2000_month_0.1_ext.tif")
 dist_stack_0.1
 
+dist_200_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/dist200_month_0.1_ext.tif")
+
+dist_1000_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/dist1000_month_0.1_ext.tif")
 
 lat_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/lat_stack_0.1_ext.tif")
 
@@ -207,6 +210,8 @@ id_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks
 dist_seamount_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/dist_seamounts_month_0.1.tif")
 dist_seamount_stack_0.1
 dist_knolls_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/dist_knolls_month_0.1.tif")
+
+sst_slope_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/thetao_sst.slope_month_0.1_ext.tif")
 
 
 # Convert to factor
@@ -245,6 +250,9 @@ rough_stack_0.1
 terra::units(dist_stack_0.1) <- "km"
 dist_stack_0.1
 
+dist_200_stack_0.1
+dist_1000_stack_0.1
+
 
 # uv_stack_0.1 <- log1p(uv_stack_0.1)
 # terra::units(uv_stack_0.1) <- "log1p(m s-1)"
@@ -262,12 +270,16 @@ terra::units(mld_stack_0.1) <- "m"
 mld_stack_0.1
 
 terra::units(dist_knolls_stack_0.1) <- "km"
-terra::units(dist_seamounts_stack_0.1) <- "km"
+terra::units(dist_seamount_stack_0.1) <- "km"
+
+
 
 pred_stack_lst <- list(
   depth_stack_0.1, 
   slope_stack_0.1, 
   rough_stack_0.1, 
+  dist_200_stack_0.1,
+  dist_1000_stack_0.1,
   dist_stack_0.1,
   sst_stack_0.1,
   mld_stack_0.1,
@@ -280,7 +292,8 @@ pred_stack_lst <- list(
   month_stack_0.1,
   year_stack_0.1,
   dist_seamount_stack_0.1, 
-  dist_knolls_stack_0.1
+  dist_knolls_stack_0.1,
+  sst_slope_0.1
 )
 
 
@@ -291,6 +304,8 @@ pred_stack_lst
 names(pred_stack_lst) <- c("depth", 
                            "slope", 
                            "roughness", 
+                           "dist200",
+                           "dist1000",
                            "dist2000",
                            "thetao", 
                            "mltost",  
@@ -303,7 +318,8 @@ names(pred_stack_lst) <- c("depth",
                            "month",
                            "year",
                            "dist_seamount",
-                           "dist_knoll")
+                           "dist_knoll",
+                           "sst_slope")
 
 names(pred_stack_lst)
 
@@ -325,6 +341,8 @@ for (month in 1:186) {
     pred_stack_lst$depth[[month]], 
     pred_stack_lst$slope[[month]], 
     pred_stack_lst$roughness[[month]], 
+    pred_stack_lst$dist200[[month]],
+    pred_stack_lst$dist1000[[month]],
     pred_stack_lst$dist2000[[month]],
     pred_stack_lst$thetao[[month]], 
     pred_stack_lst$mltost[[month]], 
@@ -337,13 +355,16 @@ for (month in 1:186) {
     pred_stack_lst$month[[month]],
     pred_stack_lst$year[[month]],
     pred_stack_lst$dist_seamount[[month]],
-    pred_stack_lst$dist_knoll[[month]]
+    pred_stack_lst$dist_knoll[[month]],
+    pred_stack_lst$sst_slope[[month]]
   ))
   
   # Set names for the layers
   names(monthly_stack) <- c("depth", 
                             "slope", 
                             "roughness", 
+                            "dist200",
+                            "dist1000",
                             "dist2000",
                             "thetao", 
                             "mltost",  
@@ -356,7 +377,8 @@ for (month in 1:186) {
                             "month",
                             "year",
                             "dist_seamount",
-                            "dist_knoll")
+                            "dist_knoll",
+                            "sst_slope")
   
   # Assign the monthly stack to the corresponding month name
   monthly_stacks_lst[[month_name]] <- monthly_stack
@@ -365,10 +387,16 @@ for (month in 1:186) {
 
 
 
-
+plot(monthly_stacks_lst[[1]])
+is.factor(monthly_stacks_lst[[1]])
+names(monthly_stacks_lst[[1]])
 
 
 monthly_stacks_lst_0.1_trans <- monthly_stacks_lst
+
+
+is.factor(monthly_stacks_lst_0.1_trans[[1]])
+names(monthly_stacks_lst_0.1_trans[[1]])
 
 monthly_stacks_lst_0.1_trans$`2025-06-01`
 monthly_stacks_lst_0.1_trans[[186]]

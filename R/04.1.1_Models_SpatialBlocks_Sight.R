@@ -17,14 +17,18 @@ source("R/00_Helper_Functions.R")
 
 
 sight <- readRDS("data/processed/Sightings_PA_w_dynSDM_10_2010_2025_extract.rds")
+# sight <- readRDS("data/work_files/Sightings_Validation_data_extract_full.rds")
+
+
 str(sight)
 
-
+# lets make an experiemtn and just sample east coast australia nd. bult a quick sdm from that, maybe for supplements
 sight <- sight |>
   dplyr::rename(depth = Depth,
                 slope = Slope,
                 roughness = Roughness,
                 wz = Wz) |> 
+  dplyr::filter(lon > 140) |> 
   sf::st_drop_geometry()
 
 str(sight)
@@ -193,7 +197,7 @@ terra::points(v[v$PA == 1, ], pch = 21, cex = 0.5, col = "black", bg = "red")
 sight_occ_blocks <- dynamicSDM::spatiotemp_block(sight_occ,
                                        vars.to.block.by = vars,
                                        spatial.layer = raster_crop,
-                                       spatial.split.degrees = 6,
+                                       spatial.split.degrees = 1,
                                        temporal.block = "month",
                                        n.blocks = 5,
                                        iterations = 10000)
@@ -217,21 +221,22 @@ str(sight_occ_blocks.sf)
 
 
 saveRDS(sight_occ_blocks.sf, "data/processed/Sightings_PA_w_dynSDM_10_2010_2025_extract_processed.rds")
+saveRDS(sight_occ_blocks.sf, "data/work_files/Sightings_Validation_data_extract_full_processed.rds")
 
 
-
+saveRDS(sight_occ_blocks.sf, "data/processed/Sightings_PA_w_dynSDM_10_2010_2025_extract_processed_SUPPS_MODEL.rds")
 #_____________ use blockCV package 
 library(blockCV)
 library(tmap)
 
 
-sight_m <- sight_m |> dplyr::rename(id_obs = id)
+# sight_m <- sight_m |> dplyr::rename(id_obs = id)
 base::row.names(sight_m) <- as.character(seq_len(nrow(sight_m)))
 
 str(sight_m)
 
 input_occ <- sight_m |> 
-  dplyr::transmute(id_obs, 
+  dplyr::transmute(id, 
                    date, 
                    lon, 
                    lat, 
@@ -396,8 +401,9 @@ str(input_occ)
 ## Spatial Blocks
 # random 
 
-range = 750000 # size of the blocks in metres
-input_raster <- input_raster_ext
+range = 500000 # size of the blocks in metres
+# input_raster <- input_raster_ext
+
 
 sb1 <- blockCV::cv_spatial(x = input_occ,
                   column = "PA", # the response column (binary or multi-class)
@@ -406,7 +412,7 @@ sb1 <- blockCV::cv_spatial(x = input_occ,
                   size = range, 
                   hexagon = FALSE,
                   selection = "random", # random blocks-to-fold
-                  iteration = 500, # find evenly dispersed folds
+                  iteration = 100, # find evenly dispersed folds
                   progress = TRUE,
                   seed = 666,
                   biomod2 = FALSE) # also create folds for biomod2
@@ -520,8 +526,8 @@ sb3_sim <- blockCV::cv_similarity(cv = sb3,
 sb3_sim
 
 
-
-
+sb1$records
+sb3$records
 
 # spatial clustering
 set.seed(6)
@@ -593,4 +599,7 @@ scv_sim
 
 # Save  -------------------------------------------------------------------
 
-saveRDS(sb3, "data/processed/BlockCV_spatial_folds.rds")
+saveRDS(sb2, "data/processed/BlockCV_spatial_folds_sightings_groups.rds")
+
+
+saveRDS(sb1, "data/processed/BlockCV_spatial_folds_sightings_SUPPS_MODEL.rds")

@@ -180,7 +180,7 @@ bias_results
 
 
 
-
+str(occ_filtered_4)
 
 
 ### data thinning to avoid spatioremporal correlation 

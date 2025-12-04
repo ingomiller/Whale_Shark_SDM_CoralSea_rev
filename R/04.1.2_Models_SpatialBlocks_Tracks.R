@@ -8,6 +8,7 @@ library(tidyverse)
 library(terra)
 library(sf)
 library(dynamicSDM)
+library(patchwork)
 source("R/00_Helper_Functions.R") 
 
 
@@ -16,22 +17,206 @@ source("R/00_Helper_Functions.R")
 # Import DATA -------------------------------------------------------------
 
 
-tracks <- readRDS("data/processed/Tracks_PA_w_dynSDM_10_2010_2025_extract.rds")
-tracks <- readRDS("data/processed/Tracks_PA_w_3days_dynSDM_10_2010_2025_extract.rds")
-tracks <- readRDS("data/processed/Tracks_PA_w_3to7days_dynSDM_10_2010_2025_extract.rds")
-tracks <- readRDS("data/processed/Tracks_PA_w_1to4days_dynSDM_30_2018_2025_extract.rds")
-tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract.rds")
-tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed_seamounts.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_dynSDM_10_2010_2025_extract.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_3days_dynSDM_10_2010_2025_extract.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_3to7days_dynSDM_10_2010_2025_extract.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_1to4days_dynSDM_30_2018_2025_extract.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract.rds")
+# tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed_seamounts.rds")
+
+# remove PAT tags from tehse and run spatial blocks again 
+# tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed_monthsreduced.rds")
 
 
+# tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final.rds")
+
+tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_th_final.rds")
+
+
+# using random buffer absences dynamicSDM
+# tracks <- readRDS("data/processed/Tracks_PA_mp_RandomBuf_30_thinned_2018_2025_extract_final.rds")
+
+
+
+
+
+str(tracks_crw)
 str(tracks)
 
+
+# tracks <- tracks_crw
+
+tracks <- tracks |>
+  dplyr::rename(depth = Depth,
+                slope = Slope,
+                roughness = Roughness,
+                wz = Wz) |>
+  # remove positive deoths 
+  dplyr::filter(!depth >= 0) |>
+  dplyr::filter(month != 10) |> 
+  sf::st_drop_geometry()
+
+
+tracks |> dplyr::filter(month == 10)
+  
+
+
+# cut off some of teh souther extent 
+# tracks1 <- tracks |> 
+#   dplyr::filter(lat > -27)
+# 
+# # tracks_old |> 
+# #   as.data.frame() |>
+# #   dplyr::group_by(PA) |> 
+# #   rstatix::get_summary_stats(thetao, type = "common")
+# 
+# tracks1 |> 
+#   as.data.frame() |>
+#   dplyr::group_by(PA) |> 
+#   rstatix::get_summary_stats(thetao, type = "common")
+# 
+# tracks <- tracks1
+
+both <- dplyr::bind_rows(
+  tracks_crw |> dplyr::mutate(dataset = "crw"),
+  tracks     |> dplyr::mutate(dataset = "random buffered bg")
+)
+
+# Density / histogram per PA and dataset
+both |>
+  ggplot2::ggplot(
+    ggplot2::aes(x = thetao, fill = factor(PA), colour = factor(PA))
+  ) +
+  ggplot2::geom_density(alpha = 0.3, trim = TRUE) +
+  ggplot2::facet_wrap(~ dataset, ncol = 1)
+
+tracks |>
+  ggplot2::ggplot(ggplot2::aes(x = thetao, y = lat, colour = factor(PA))) +
+  ggplot2::geom_point(alpha = 0.3) +
+  ggplot2::scale_y_continuous()
+
+tracks_old |>
+  ggplot2::ggplot(ggplot2::aes(x = thetao, y = lat, colour = factor(PA))) +
+  ggplot2::geom_point(alpha = 0.3) +
+  ggplot2::scale_y_continuous()
+
+tracks |>
+  ggplot2::ggplot(ggplot2::aes(x = thetao, y = lon, colour = factor(PA))) +
+  ggplot2::geom_point(alpha = 0.3) +
+  ggplot2::scale_y_continuous()
+
+tracks_old |>
+  ggplot2::ggplot(ggplot2::aes(x = thetao, y = lon, colour = factor(PA))) +
+  ggplot2::geom_point(alpha = 0.3) +
+  ggplot2::scale_y_continuous()
+
+
+
+tracks_old |> dplyr::filter(thetao < 25)
+tracks |> dplyr::filter(thetao < 26)
+unique(tracks$id_split)
+unique(tracks_old$id_split)
+
+tracks |>  dplyr::filter(id_split == "252215_9") |> dplyr::select(Date, lat, lon, PA, rep, thetao) 
+tracks_old |>  dplyr::filter(id_split == "252215_9") |> dplyr::select(Date, lat, lon, PA, rep, thetao) 
+
+# id252215_9 <- tracks_old |> 
+#   sf::st_drop_geometry() |> 
+#   as.data.frame() |> 
+#   dplyr::select(-replicate) |> 
+#   dplyr::filter(PA == 0 & id_split == "252215_9" & thetao < 25)
+# 
+# id252215_9
+# 
+# 
+# tracks_fixed <- tracks |> 
+#   dplyr::bind_rows(id252215_9) |> 
+#   dplyr::arrange(id, rep, date)
+# 
+# tracks_fixed |>
+#   ggplot2::ggplot(ggplot2::aes(x = thetao, y = lat, colour = factor(PA))) +
+#   ggplot2::geom_point(alpha = 0.3) +
+#   ggplot2::scale_y_continuous()
+# 
+# 
+# 
+# tracks <- tracks_fixed
+# 
+# str(tracks)
+# 
+# tracks
+
+
+unique(tracks$Tag_type)
+unique(tracks$month)
+unique(tracks$rep)
+
+# experiment removing PAT tags 
+# tracks <- tracks |> 
+#   dplyr::filter(!Tag_type %in% c("PSAT", "PSAT_SPOT"))
+# 
+
+
+# # crop absences to extend of presences +/- 1 degree buffer 
+# 
+# pres <- tracks |> dplyr::filter(PA == 1)
+# if (nrow(pres) == 0) stop("No presences found (PA == 1).")
+# 
+# # 1) Bounding box from presences (ignore NAs)
+# pad <- 1  # degrees
+# lon_rng <- range(pres$lon, na.rm = TRUE)
+# lat_rng <- range(pres$lat, na.rm = TRUE)
+# 
+# lon_min <- lon_rng[1] - pad
+# lon_max <- lon_rng[2] + pad
+# lat_min <- lat_rng[1] - pad
+# lat_max <- lat_rng[2] + pad
+# 
+# # 2) Filter absences by lon/lat ranges
+# abs_crop <- tracks |>
+#   dplyr::filter(PA == 0) |>
+#   dplyr::filter(dplyr::between(lon, lon_min, lon_max),
+#                 dplyr::between(lat, lat_min, lat_max))
+# 
+# # 3) Combine back
+# locs_crop <- dplyr::bind_rows(pres, abs_crop)
+# 
+# # Optional quick check
+# message("Original: ", nrow(tracks), 
+#         " | Pres: ", nrow(pres),
+#         " | Abs kept: ", nrow(abs_crop),
+#         " | New total: ", nrow(locs_crop))
+# 
+# ggplot() +
+#   geom_point(data = tracks, aes(lon, lat), color = "grey80", size = 1) +
+#   geom_point(data = abs_crop, aes(lon, lat), color = "blue", size = 1) +
+#   geom_point(data = pres, aes(lon, lat), color = "red", size = 1.5) +
+#   coord_equal() +
+#   labs(x = "Longitude", y = "Latitude",
+#        title = "Presences (red) and Cropped Absences (blue)") +
+#   theme_minimal()
+# 
+# 
+# 
+# tracks <- locs_crop
+# 
+
+
+
+
+
+# tracks <- tracks |>
+#   dplyr::rename(depth = Depth,
+#                 slope = Slope,
+#                 roughness = Roughness,
+#                 wz = Wz) |>
+#   sf::st_drop_geometry()
 
 tracks <- tracks |>
   # dplyr::rename(depth = Depth,
   #               slope = Slope,
   #               roughness = Roughness,
-  #               wz = Wz) |> 
+  #               wz = Wz) |>
   sf::st_drop_geometry()
 
 str(tracks)
@@ -39,11 +224,22 @@ str(tracks)
 tracks |> distinct(id) |>  nrow()
 tracks
 
-vars <- c("depth", "slope", "roughness", "dist2000", "thetao", "uv", "mltost", "chl", "wz", "dist_seamount", "dist_knoll")
 
+
+# vars <- c("depth", "slope", "roughness","dist200", "dist1000", "dist2000", "thetao", "uv", "mltost", "chl", "wz", "dist_seamount", "dist_knoll")
+
+vars <- c("depth", "slope", "roughness", "dist2000", "thetao", "uv", "mltost", "chl", "wz", "sst_slope")
+
+rows_with_na <- tracks |>
+  dplyr::filter(
+    dplyr::if_any(dplyr::all_of(vars), ~ is.na(.))
+  )
+
+rows_with_na
 
 # check for NAs
 keep <- stats::complete.cases(tracks[, vars])
+
 
 tracks <- tracks |>
   dplyr::filter(keep) |> 
@@ -64,23 +260,109 @@ crs(tracks)
 
 
 
-mapview::mapview(
-  tracks |> dplyr::select(-Date) |> dplyr::filter(PA == 1) |> dplyr::filter(month %in% c(7, 8, 9)),
-  col.regions = "steelblue1", layer.name = "underrepresented months"
-) +
-  mapview::mapview(
-    tracks |> dplyr::select(-Date) |> dplyr::filter(PA == 1) |> dplyr::filter(!month %in% c(7, 8, 9)),
-    col.regions = "firebrick", layer.name = "good months"
-  ) 
+# removing absence locations to achieve rougly 1:10 ratio - as it was found too many absences will make model bad 
 
-mapview::mapview(
-  tracks |> dplyr::select(-Date) |> dplyr::filter(PA == 1) |> dplyr::filter(dist2000 > 300000),
-  col.regions = "steelblue1", layer.name = "underrepresented months"
-) 
-  
+# reduce number of replicayes 
+N_reps <- 15  # try 10, 15, 20 ...
+
+# 1) pick WHICH absence reps to keep per id_split
+set.seed(99)
+
+abs_rep_keep <- tracks |>
+  dplyr::filter(PA == 0, !is.na(rep)) |>
+  dplyr::distinct(id_split, rep) |>
+  dplyr::group_by(id_split) |>
+  dplyr::arrange(rep, .by_group = TRUE) |>
+  dplyr::slice_sample(n = N_reps) |>
+  dplyr::ungroup()
+
+print(abs_rep_keep, n=200)
+
+tracks_capped <- dplyr::bind_rows(
+  tracks |> dplyr::filter(PA == 1),
+  tracks |> dplyr::filter(PA == 0) |>
+    dplyr::semi_join(abs_rep_keep, by = c("id_split","rep"))
+)
+
+# ?slice_sample
+# 
+# ## Method 2 to make sure number is the same 
+# 
+# set.seed(42)
+# 
+# pres_counts <- tracks |>
+#   dplyr::filter(PA == 1) |>
+#   sf::st_drop_geometry() |>
+#   dplyr::count(id_split, name = "n_pres")
+# 
+# # 2) All candidate absences, with n_pres joined on
+# abs_candidates <- tracks |>
+#   dplyr::filter(PA == 0) |>
+#   dplyr::inner_join(pres_counts, by = "id_split")
+# 
+# str(abs_candidates)
+# 
+# # 3) For each id_split, decide how many absences to keep:
+# #    n_keep = min(#presences, #available absences)
+# abs_n_keep <- abs_candidates |>
+#   sf::st_drop_geometry() |>
+#   dplyr::group_by(id_split) |>
+#   dplyr::summarise(
+#     n_keep = min(dplyr::first(n_pres), dplyr::n()),
+#     .groups = "drop"
+#   )
+# 
+# # 4) join n_keep back and randomly sample that many absences per id_split
+# abs_kept <- abs_candidates |>
+#   dplyr::inner_join(abs_n_keep, by = "id_split") |>
+#   dplyr::group_by(id_split) |>
+#   dplyr::slice_sample(n = dplyr::first(n_keep)) |>
+#   dplyr::ungroup()
+# 
+# # 5) combine presences + balanced absences
+# tracks_balanced <- dplyr::bind_rows(
+#   tracks |> dplyr::filter(PA == 1),
+#   abs_kept
+# )
+# 
+# # quick check: should be ~1:1 per id_split
+# dplyr::count(tracks_balanced, id_split, PA)
+# sanity check
+
+tracks |>
+  dplyr::group_by(id_split) |>
+  dplyr::summarise(Pre = sum(PA==1), Abs = sum(PA==0), ratio = Abs/Pre, .groups="drop") |>
+  print(n = 200)
 
 
-## removing extreme outliers
+
+
+tracks_capped |>
+  dplyr::group_by(id_split) |>
+  dplyr::summarise(Pre = sum(PA==1), Abs = sum(PA==0), ratio = Abs/Pre, .groups="drop") |>
+  print(n = 200)
+
+tracks_capped |> dplyr::group_by(PA) |>  dplyr::summarise(n = n())
+tracks |> dplyr::group_by(PA) |>  dplyr::summarise(n = n())
+
+
+
+
+tracks |> 
+  as.data.frame() |>
+  dplyr::group_by(PA) |> 
+  rstatix::get_summary_stats(thetao, type = "common")
+
+tracks_capped |> 
+  as.data.frame() |>
+  dplyr::group_by(PA) |> 
+  rstatix::get_summary_stats(thetao, type = "common")
+
+
+tracks_capped |> dplyr::filter(thetao < 25)
+
+
+# Explore Data ------------------------------------------------------------
 
 plots <- tracks |> dplyr::mutate(PA = as.factor(PA))
 
@@ -94,20 +376,85 @@ plots <- tracks |> dplyr::mutate(PA = as.factor(PA))
     plots |>  ggplot(aes(x = dist2000, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
     plots |>  ggplot(aes(x = wz, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
     plots|>  ggplot(aes(x = mltost, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots|>  ggplot(aes(x = dist_seamount, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
-    plots|>  ggplot(aes(x = dist_knoll, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    # plots|>  ggplot(aes(x = dist_seamount, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    # plots|>  ggplot(aes(x = dist_knoll, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plot_layout(guides = "collect")
+)
+
+plots <- tracks_capped |> dplyr::mutate(PA = as.factor(PA))
+
+
+(plots |>  ggplot(aes(x = depth, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = slope, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = roughness, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = thetao, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = uv, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = chl, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = dist2000, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = wz, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots|>  ggplot(aes(x = mltost, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    # plots|>  ggplot(aes(x = dist_seamount, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    # plots|>  ggplot(aes(x = dist_knoll, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
     plot_layout(guides = "collect")
 )
 
 
-tracks_out <- tracks |> 
+# Transformations
+max(tracks$depth)
+tracks |> dplyr::filter(depth >= 0)
+
+
+
+tracks <- tracks_capped
+
+
+
+
+tracks_trans <- tracks |>
+    dplyr::mutate(
+                  year  = factor(year),
+                  # depth = case_when(depth >= 0 ~ -5, TRUE ~ depth),
+                  # id = as.factor(id),
+                  # id_split = as.factor(id_split),
+                  dist200 = dist200/1000,
+                  dist1000 = dist1000/1000,
+                  dist2000 = dist2000/1000,
+                  chl = log(chl)
+    )
+
+str(tracks_trans)
+mapview::mapView(tracks_trans |> sf::st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE) |>  dplyr::select(-Date))
+
+plots <- tracks_trans |> dplyr::mutate(PA = as.factor(PA))
+
+
+(plots |>  ggplot(aes(x = depth, colour = PA)) + geom_histogram(bins = 200) + theme_bw() +
+    plots |>  ggplot(aes(x = slope, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = roughness, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = thetao, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = uv, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = chl, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = dist2000, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots |>  ggplot(aes(x = wz, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plots|>  ggplot(aes(x = mltost, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    # plots|>  ggplot(aes(x = dist_seamount, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    # plots|>  ggplot(aes(x = dist_knoll, colour = PA)) + geom_histogram(bins = 50) + theme_bw() +
+    plot_layout(guides = "collect")
+)
+
+
+mapview::mapview(tracks_trans |> dplyr::select(-Date))
+
+tracks_out <- tracks_trans |> 
   dplyr::filter(
+    # between(uv, mean(uv, na.rm = TRUE) - 4 * sd(uv, na.rm = TRUE), mean(uv, na.rm = TRUE) + 4 * sd(uv, na.rm = TRUE)),
+    # between(depth, mean(depth, na.rm = TRUE) - 4 * sd(depth, na.rm = TRUE), mean(depth, na.rm = TRUE) + 4 * sd(depth, na.rm = TRUE)),
+    # between(dist2000, mean(dist2000, na.rm = TRUE) - 4 * sd(dist2000, na.rm = TRUE), mean(dist2000, na.rm = TRUE) + 4 * sd(dist2000, na.rm = TRUE)),
     # between(chl, mean(chl, na.rm = TRUE) - 4 * sd(chl, na.rm = TRUE), mean(chl, na.rm = TRUE) + 4 * sd(chl, na.rm = TRUE)),
-    between(uv, mean(uv, na.rm = TRUE) - 4 * sd(uv, na.rm = TRUE), mean(uv, na.rm = TRUE) + 4 * sd(uv, na.rm = TRUE)),
-    between(mltost, mean(mltost, na.rm = TRUE) - 4 * sd(mltost, na.rm = TRUE), mean(mltost, na.rm = TRUE) + 4 * sd(mltost, na.rm = TRUE)),
+    # between(thetao, mean(thetao, na.rm = TRUE) - 4 * sd(thetao, na.rm = TRUE), mean(thetao, na.rm = TRUE) + 4 * sd(thetao, na.rm = TRUE)),
+    # between(mltost, mean(mltost, na.rm = TRUE) - 4 * sd(mltost, na.rm = TRUE), mean(mltost, na.rm = TRUE) + 4 * sd(mltost, na.rm = TRUE)),
     between(roughness, mean(roughness, na.rm = TRUE) - 4 * sd(roughness, na.rm = TRUE), mean(roughness, na.rm = TRUE) + 4 * sd(roughness, na.rm = TRUE)),
     between(slope, mean(slope, na.rm = TRUE) - 4 * sd(slope, na.rm = TRUE), mean(slope, na.rm = TRUE) + 4 * sd(slope, na.rm = TRUE)),
-    # between(dist2000, mean(dist2000, na.rm = TRUE) - 4 * sd(dist2000, na.rm = TRUE), mean(dist2000, na.rm = TRUE) + 4 * sd(dist2000, na.rm = TRUE)),
     between(wz, mean(wz, na.rm = TRUE) - 4 * sd(wz, na.rm = TRUE), mean(wz, na.rm = TRUE) + 4 * sd(wz, na.rm = TRUE))
   )
 
@@ -128,162 +475,56 @@ plots <- tracks_out |> dplyr::mutate(PA = as.factor(PA))
     plot_layout(guides = "collect")
 )
 
-
-# tracks_filtered <- tracks |> 
-#   dplyr::filter(lon < 160)
-# 
-# tracks <- tracks_filtered
-
-# crop tracks to extend of raster 
-raster <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/depth_month_0.1.tif")
-
-# ext  <- terra::ext(raster)
-# ext
-# bbox <- sf::st_bbox(
-#   c(
-#     xmin = terra::xmin(ext),
-#     ymin = terra::ymin(ext),
-#     xmax = terra::xmax(ext),
-#     ymax = terra::ymax(ext)
-#   ),
-#   crs = sf::st_crs(tracks)
-# )
-# 
-# roi <- sf::st_as_sfc(bbox)
-# roi
-# 
-# tracks <- tracks |> sf::st_crop(roi)
+tracks |> dplyr::group_by(PA) |> 
+  dplyr::summarise(n = n())
+tracks_trans |> dplyr::group_by(PA) |> 
+  dplyr::summarise(n = n())
+tracks_out |> dplyr::group_by(PA) |> 
+  dplyr::summarise(n = n())
 
 
-# crop absences to extend of presences +/- 1 degree buffer 
+tracks_out |> 
+  as.data.frame() |>
+  dplyr::group_by(PA) |> 
+  rstatix::get_summary_stats(thetao, type = "common")
 
-pres <- tracks_out |> dplyr::filter(PA == 1)
-if (nrow(pres) == 0) stop("No presences found (PA == 1).")
+mapview::mapview(tracks_out |> dplyr::filter(PA == 1) |> dplyr::select(-Date))
+mapview::mapview(tracks_out |> dplyr::select(-Date))
 
-# 1) Bounding box from presences (ignore NAs)
-pad <- 1  # degrees
-lon_rng <- range(pres$lon, na.rm = TRUE)
-lat_rng <- range(pres$lat, na.rm = TRUE)
+str(tracks)
 
-lon_min <- lon_rng[1] - pad
-lon_max <- lon_rng[2] + pad
-lat_min <- lat_rng[1] - pad
-lat_max <- lat_rng[2] + pad
-
-# 2) Filter absences by lon/lat ranges
-abs_crop <- tracks_out |>
-  dplyr::filter(PA == 0) |>
-  dplyr::filter(dplyr::between(lon, lon_min, lon_max),
-                dplyr::between(lat, lat_min, lat_max))
-
-# 3) Combine back
-tracks_crop <- dplyr::bind_rows(pres, abs_crop)
-
-# Optional quick check
-message("Original: ", nrow(tracks), 
-        " | Pres: ", nrow(pres),
-        " | Abs kept: ", nrow(abs_crop),
-        " | New total: ", nrow(tracks_crop))
-
-ggplot() +
-  geom_point(data = tracks_out, aes(lon, lat), color = "grey80", size = 1) +
-  geom_point(data = abs_crop, aes(lon, lat), color = "blue", size = 1) +
-  geom_point(data = pres, aes(lon, lat), color = "red", size = 1.5) +
-  coord_equal() +
-  labs(x = "Longitude", y = "Latitude",
-       title = "Presences (red) and Cropped Absences (blue)") +
-  theme_minimal()
+deleted_presences <- dplyr::anti_join(as.data.frame(tracks_trans), as.data.frame(tracks_out), by = names(tracks_trans)) |>
+  dplyr::filter(PA == 1)
 
 
+mapview::mapView(deleted_presences |> sf::st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE) |>  dplyr::select(-Date))
 
-tracks_reduced <- tracks_crop |> 
-  dplyr::filter(!month %in% c(7, 8, 9)) 
-
-
-
-
-### remove absences within 25 km of a presence 
-
-sp_thinning_PA_overlap <- function(input_df, grid_res = 0.1) {
-  library(future.apply)
-  library(progressr)
-  
-  # Drop geometry if input is sf
-  if ("sf" %in% class(input_df)) {
-    input_df <- sf::st_drop_geometry(input_df)
-  }
-  
-  # Separate presence and absence points
-  presence_points <- input_df %>% filter(PA == "1")
-  absence_points <- input_df %>% filter(PA == "0")
-  
-  # Initialize progressor
-  p <- progressor(along = seq_len(nrow(presence_points)))
-  
-  # Function to process each presence point and find overlapping absences
-  process_presence_point <- function(i) {
-    # Define the grid cell for the current presence point
-    lat_range <- c(presence_points$lat[i] - grid_res / 2, presence_points$lat[i] + grid_res / 2)
-    lon_range <- c(presence_points$lon[i] - grid_res / 2, presence_points$lon[i] + grid_res / 2)
-    
-    # Identify absences in the same grid cell and on the same date
-    absences_to_remove <- absence_points %>%
-      dplyr::filter(date == presence_points$date[i] & 
-                      lat >= lat_range[1] & lat <= lat_range[2] & 
-                      lon >= lon_range[1] & lon <= lon_range[2])
-    
-    # Update the progress bar
-    p()
-    
-    # Return the rows to be removed
-    return(absences_to_remove)
-  }
-  
-  # Run the thinning process in parallel to identify all absences to remove
-  absences_to_remove_list <- future_lapply(seq_len(nrow(presence_points)), process_presence_point)
-  
-  # Combine all absences to remove into a single dataframe
-  absences_to_remove <- do.call(rbind, absences_to_remove_list)
-  
-  # Remove these absences from the absence data frame
-  absence_points <- dplyr::anti_join(absence_points, absences_to_remove, by = c("id", "rep", "date", "lon", "lat"))
-  
-  # Combine the remaining absences with all presence points
-  thinned_data <- dplyr::bind_rows(presence_points, absence_points)
-  
-  return(thinned_data)
-}
-
-future::plan("sequential") # in sequence
-progressr::handlers(global = TRUE)
-# progressr::handlers("progress")
-progressr::handlers("cli")
-str(tracks_crop)
-
-# tracks_ol <- sp_thinning_PA_overlap(tracks_crop, grid_res = 0.5)
-tracks_ol <- sp_thinning_PA_overlap(tracks_reduced, grid_res = 0.5)
-tracks_ol <- tracks_ol |>
-  sf::st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE) 
-  
-
-
-
-
-
+str(deleted_presences)
 
 # autocrrelation ----------------------------------------------------------
-tracks_occ <- tracks_ol |> 
+tracks_occ <- tracks_out |> 
   dplyr::filter(PA == 1) |> 
   as.data.frame()
 
 
+tracks_occ |> dplyr::filter(month ==10)
+
+# tracks_occ <- tracks_trans |>
+#   dplyr::filter(PA == 1) |>
+#   as.data.frame()
+
+
+variables <- c("depth", "slope", "roughness", "dist2000", "thetao", "uv", "mltost", "chl", "wz")
+
 ac <- dynamicSDM::spatiotemp_autocorr(tracks_occ,
-                                      varname = vars,
+                                      varname = variables,
                                       plot = TRUE,
                                       temporal.level = c("day", "month", "year")) 
 
 
 # ac$Plots
+
+ac$Statistical_tests
 
 ## extract spatial tests results 
 spatial_tests <- ac$Statistical_tests |>
@@ -338,7 +579,9 @@ temporal_tests <- ac$Statistical_tests |>
 print(spatial_tests)
 print(temporal_tests, n=50)
 
+temporal_tests |> dplyr::filter(p.value <= 0.05)
 
+spatial_tests |> dplyr::filter(p.value <= 0.05)
 
 ## negative spatial autocorrelation detcted 
 ## some temporal ac on daily scale to be dealt with 
@@ -358,12 +601,28 @@ raster <- raster[[1]]
 print(raster)
 plot(raster)
 
+
+tracks <- readRDS( "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_4.rds")
+
+tracks <- tracks |> sf::st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE)
+
 # crop raster to extent of occurrences 
 
-tracks_m <- tracks_ol |>
+# tracks_m <- tracks_out |>
+#   sf::st_make_valid() |>
+#   sf::st_zm(drop = TRUE, what = "ZM") |>
+#   sf::st_transform("EPSG:3577")
+
+
+tracks_m <- tracks |>
   sf::st_make_valid() |>
   sf::st_zm(drop = TRUE, what = "ZM") |>
   sf::st_transform("EPSG:3577")
+
+# tracks_m <- tracks_trans |>
+#   sf::st_make_valid() |>
+#   sf::st_zm(drop = TRUE, what = "ZM") |>
+#   sf::st_transform("EPSG:3577")
 
 str(tracks_m)
 
@@ -373,7 +632,7 @@ v
 bb <- terra::ext(v)
 buff <- 100000  # ~2° buffer added
 
-bb <- sf::st_bbox(tracks_ol)
+bb <- sf::st_bbox(tracks)
 
 bb_exp <- c(
   xmin = base::max(-180, base::as.numeric(bb["xmin"]) - 1),
@@ -409,16 +668,25 @@ terra::points(v[v$PA == 1, ], pch = 21, cex = 0.5, col = "black", bg = "red")
 
 
 
-tracks_occ <- tracks_ol |> 
+# tracks_occ <- tracks_out |>
+#   as.data.frame()
+
+tracks_occ <- tracks |>
   as.data.frame()
+
+# tracks_occ <- tracks_trans |>
+#   as.data.frame()
+
+
 
 tracks_occ_blocks <- dynamicSDM::spatiotemp_block(tracks_occ,
                                                  vars.to.block.by = vars,
                                                  spatial.layer = raster_crop,
-                                                 spatial.split.degrees = 1,
+                                                 spatial.split.degrees = 5,
                                                  temporal.block = "month",
                                                  n.blocks = 5,
                                                  iterations = 10000)
+
 
 
 
@@ -437,22 +705,61 @@ tracks_occ_blocks.sf |>
 str(tracks_occ_blocks.sf)
 
 
-saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_dynSDM_10_2018_2025_extract_processed.rds")
-saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_3days_dynSDM_10_2018_2025_extract_processed.rds")
-saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_3to7days_dynSDM_10_2018_2025_extract_processed.rds")
-saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_1to4days_dynSDM_30_2018_2025_extract_processed.rds")
-saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds")
-saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed_monthsreduced.rds")
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_dynSDM_10_2018_2025_extract_processed.rds")
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_3days_dynSDM_10_2018_2025_extract_processed.rds")
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_3to7days_dynSDM_10_2018_2025_extract_processed.rds")
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_1to4days_dynSDM_30_2018_2025_extract_processed.rds")
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds")
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed_monthsreduced.rds")
 
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed_monthsreduced_woPATS.rds")
+# 
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced.rds")
+# 
+# 
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_2.rds")
+# 
+# 
+# # rep rediced to 20, maintainign 1:15 PA ratio approximately 
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_3.rds")
+# 
+# rep 15; spatial ac distance incrreased to 500 km; no lat cutoff
+saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_4.rds")
+
+
+
+# raddomly sampled bufeer absence locations (25-500km); rep 15; ; no lat cutoff
+saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_5.rds")
+
+
+# # raddomly sampled bufeer absence locations (25-500km); keep all absences 
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_6.rds")
+
+
+
+
+# 
+# 
+# saveRDS(tracks_occ_blocks.sf, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_removedPATS_test.rds")
+# 
 
 
 #_____________ use blockCV package 
 library(blockCV)
 library(tmap)
 
+tracks <- readRDS( "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final_processed_monthsreduced_4.rds")
+
+
+tracks_m <- tracks |>
+  sf::st_make_valid() |>
+  sf::st_zm(drop = TRUE, what = "ZM") |>
+  sf::st_transform("EPSG:3577")
+
+
 
 tracks_m <- tracks_m |> dplyr::rename(id_obs = id)
-base::row.names(tracks_m) <- as.character(seq_len(nrow(tracks_m)))
+row.names(tracks_m) <- as.character(seq_len(nrow(tracks_m)))
 
 str(tracks_m)
 
@@ -465,36 +772,51 @@ input_occ <- tracks_m |>
                    depth,
                    slope,
                    roughness, 
+                   # dist200,
+                   # dist1000,
                    dist2000, 
                    thetao, 
                    uv, 
                    mltost, 
                    chl, 
                    wz,
-                   dist_seamount,
-                   dist_knoll)
+                   sst_slope
+                   # dist_seamount,
+                   # dist_knoll
+                   )
 
 
 
 
 #load monthly mean raster stack of continous variables 
-input_raster_stack <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/mean_month_predictor_stack_0.1_ext.tif")
-input_raster_stack <- input_raster_stack[[!names(input_raster_stack) %in% c("lat", "lon", "month", "id")]]
+input_raster_stack <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/mean_month_predictor_stack_0.1_ext_log.tif")
+input_raster_stack <- input_raster_stack[[!names(input_raster_stack) %in% c("lat", 
+                                                                            "lon", 
+                                                                            "month", 
+                                                                            "id", 
+                                                                            "dist200",
+                                                                            "dist1000", 
+                                                                            "dist_seamount", 
+                                                                            "dist_knoll"
+                                                                            # "sst_slope",
+                                                                            # "mltost"
+                                                                            )]]
 
 plot(input_raster_stack)
 
 v <- terra::vect(tracks_m)
 v
 bb <- terra::ext(v)
-buff <- 100000  # ~2° buffer added
+buff <- 10000 
 
-bb <- sf::st_bbox(tracks_ol)
+bb <- sf::st_bbox(tracks)
+# bb <- sf::st_bbox(tracks_trans)
 
 bb_exp <- c(
-  xmin = base::max(-180, base::as.numeric(bb["xmin"]) - 1),
-  ymin = base::max( -90, base::as.numeric(bb["ymin"]) - 1),
-  xmax = base::min( 180, base::as.numeric(bb["xmax"]) + 1),
-  ymax = base::min(  90, base::as.numeric(bb["ymax"]) + 1)
+  xmin = base::max(-180, base::as.numeric(bb["xmin"]) - 0.5),
+  ymin = base::max( -90, base::as.numeric(bb["ymin"]) - 0.5),
+  xmax = base::min( 180, base::as.numeric(bb["xmax"]) + 0.5),
+  ymax = base::min(  90, base::as.numeric(bb["ymax"]) + 0.5)
 )
 
 bbox_poly_wgs <- sf::st_as_sfc(sf::st_bbox(bb_exp, crs = sf::st_crs(4326)))
@@ -527,6 +849,7 @@ terra::points(v[v$PA == 1, ], pch = 21, cex = 0.5, col = "black", bg = "red")
 
 input_raster <- raster_m
 input_raster
+names(input_raster)
 str(input_occ)
 
 
@@ -535,8 +858,8 @@ tmap::tm_shape(input_raster[[names(input_raster) != "id"]]) +
     col.scale = tm_scale_continuous(values = gray.colors(10)),
     col.legend = tm_legend_hide()
   ) +
-  tm_shape(input_occ) +
-  tm_dots(
+  tmap::tm_shape(input_occ) +
+  tmap::tm_dots(
     fill = "PA",
     fill.scale = tm_scale_categorical(),
     size = 0.5,
@@ -548,22 +871,22 @@ tmap::tm_shape(input_raster[[names(input_raster) != "id"]]) +
 # test spatial autocreelation distance
 set.seed(44)
 sac1 <- blockCV::cv_spatial_autocor(r = input_raster, 
-                                    num_sample = 25000,
+                                    num_sample = 10000,
                                     plot = TRUE)
 sac1$range
 
-
+summary(sac1)
 
 
 sac2 <- blockCV::cv_spatial_autocor(r = input_raster,
                                     x = input_occ, 
                                     column =  "PA", 
-                                    num_sample = 25000,
+                                    num_sample = 10000,
                                     plot = TRUE)
 sac2$range
 
 str(sac2)
-
+summary(sac2)
 
 sac3 <- blockCV::cv_spatial_autocor(x = input_occ,
                                     column = "PA",
@@ -574,7 +897,31 @@ library(automap)
 sac2$variograms
 plot(sac1$variograms[[1]])
 plot(sac2$variograms[[1]])
-plot(sac3$variograms[[1]])
+plot(sac3$variograms[[1]]) 
+
+
+
+
+graphics::plot(
+  exp_var$dist,
+  exp_var$gamma,
+  xlim = c(0, 5e5),  # show only first 500 km
+  xlab = "Distance (m)",
+  ylab = "Semivariance"
+)
+
+exp_var |>
+  dplyr::mutate(dist_km = dist / 1000) |>
+  ggplot2::ggplot(ggplot2::aes(x = dist_km, y = gamma)) +
+  ggplot2::geom_point() +
+  ggplot2::geom_line() +
+  ggplot2::coord_cartesian(xlim = c(0, 1000)) +  # e.g. 0–500 km window
+  ggplot2::labs(
+    x = "Distance (km)",
+    y = "Semivariance"
+  ) +
+  ggplot2::theme_bw()
+
 
 
 
@@ -594,19 +941,19 @@ blockCV::cv_block_size(r = input_raster,
 
 ## Spatial Blocks
 # random 
-range = 50000
-# range = 250000 # size of the blocks in metres
-# range = 500000
-pal <- cmocean::cmocean("balance")(201)
+# range = 100000
+# range = 350000 # size of the blocks in metres
+range = 500000
+pal <- cmocean::cmocean("balance")(100)
 
 sb1 <- blockCV::cv_spatial(x = input_occ,
                            column = "PA", # the response column (binary or multi-class)
                            r = input_raster,
                            k = 5, # number of folds
                            size = range, 
-                           hexagon = FALSE,
+                           hexagon = TRUE,
                            selection = "random", # random blocks-to-fold
-                           iteration = 500, # find evenly dispersed folds
+                           iteration = 100, # find evenly dispersed folds
                            progress = TRUE,
                            seed = 666,
                            biomod2 = FALSE) # also create folds for biomod2
@@ -615,25 +962,38 @@ sb1$records
 blockCV::cv_plot(cv = sb1, 
                  x = input_occ,
                  r = input_raster,
+                 num_plots = 1:5,
                  nrow = 2, 
                  points_alpha = 0.5)
+
+
+block <- blockCV::cv_plot(cv = sb1, 
+                 x = input_occ,
+                 r = input_raster,
+                 num_plots = 5,
+                 nrow = 2, 
+                 points_alpha = 0.5) +
+  theme(text = element_text(size =10))
+
+block
 
 
 sb1_sim <- blockCV::cv_similarity(cv = sb1,
                                   x = input_occ,
                                   r = input_raster,
-                                  num_plot = 1:10,
+                                  num_plot = 1:5,
                                   method = "MESS",
                                   num_sample = 10000,
                                   jitter_width = 0.2,
                                   points_size = 1,
                                   points_alpha = 0.5,
-                                  points_colors = pal,
+                                  # points_colors = pal,
                                   progress = TRUE)
 
-sb1_sim
 
-sb1$folds_list
+sb1_sim <- sb1_sim +
+  ggplot2::scale_color_gradientn(colours = pal)
+sb1_sim
 
 
 
@@ -685,10 +1045,10 @@ sb3 <- blockCV::cv_spatial(x = input_occ,
                            column = "PA", # the response column (binary or multi-class)
                            r = input_raster,
                            k = 5, # number of folds
-                           hexagon = FALSE,
+                           hexagon = TRUE,
                            size = range, # size of the blocks in metres
                            selection = "systematic", 
-                           iteration = 1000, # find evenly dispersed folds
+                           iteration = 100, # find evenly dispersed folds
                            seed = 888,
                            progress = TRUE,
                            biomod2 = FALSE) # also create folds for biomod2
@@ -709,7 +1069,7 @@ blockCV::cv_plot(cv = sb3,
 sb3_sim <- blockCV::cv_similarity(cv = sb3,
                                   x = input_occ,
                                   r = input_raster,
-                                  num_plot = 1:10,
+                                  num_plot = 1:5,
                                   method = "MESS",
                                   num_sample = 10000,
                                   jitter_width = 0.2,
@@ -721,8 +1081,11 @@ sb3_sim <- blockCV::cv_similarity(cv = sb3,
 sb3_sim
 
 
+sb1_sim
+sb3_sim
 
-
+sb1$records
+sb3$records
 
 # spatial clustering
 set.seed(6)
@@ -758,17 +1121,21 @@ scv_sim
 
 
 # Nearest Neighbour Distance Matching (NNDM) LOO
+
 nncv <- blockCV::cv_nndm(x = input_occ,
                 column = "PA",
                 r = input_raster,
-                size = range,
-                num_sample = 5000,
+                presence_bg = FALSE,   # we treat pseudo-absences as true absences as we carefully sampled them and can confdently say the animal has not been there 
+                size = 500000,
+                num_sample = 1000,
                 sampling = "random",
                 min_train = 0.25,
                 plot = TRUE)
 
-plot(nncv)
 
+nncv$records
+
+nncv$plot
 
 
 blockCV::cv_plot(cv = nncv,
@@ -783,7 +1150,7 @@ blockCV::cv_plot(cv = nncv,
 nncv_sim <- blockCV::cv_similarity(cv = nncv,
                                   x = input_occ,
                                   r = input_raster,
-                                  num_plot = 1:10,
+                                  num_plot = 1:100,
                                   method = "MESS",
                                   num_sample = 10000,
                                   jitter_width = 0.2,
@@ -797,9 +1164,24 @@ nncv_sim
 
 # Save  -------------------------------------------------------------------
 
-saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking.rds")
-saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking_3days.rds")
-saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking_3to7days.rds")
-saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking_1to4days.rds")
-saveRDS(sb1, "data/processed/BlockCV_spatial_folds_tracking_daily_mp.rds")
-saveRDS(sb1, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced.rds")
+# saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking.rds")
+# saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking_3days.rds")
+# saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking_3to7days.rds")
+# saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking_1to4days.rds")
+# saveRDS(sb1, "data/processed/BlockCV_spatial_folds_tracking_daily_mp.rds")
+# saveRDS(sb1, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced.rds")
+# saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_woPATS.rds")
+# saveRDS(sb1, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final.rds")
+# saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final_test.rds")
+# 
+# saveRDS(sb1, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final_2.rds")
+# 
+# saveRDS(sb3, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final_3.rds")
+# 
+# 
+saveRDS(sb1, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final_4.rds")
+saveRDS(nncv, "data/processed/BlockCV_spatial_NNCV_folds_tracking_daily_mp_monthreduced_final_4.rds")
+
+# saveRDS(sb1, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final_5.rds")
+
+# saveRDS(sb1, "data/processed/BlockCV_spatial_folds_tracking_daily_mp_monthreduced_final_6.rds")

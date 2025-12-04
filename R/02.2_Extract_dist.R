@@ -47,7 +47,15 @@ sight <- readRDS("data/work_files/Sightings_Validation_data_bathy.rds")
 tracks <- readRDS("data/work_files/Tracks_PA_w_dynSDM_10_raw_2010_2025_bathy.rds")
 tracks <- readRDS("data/work_files/Tracks_sims_50_raw_2010_2025_bathy.rds")
 tracks <- readRDS("data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy.rds")
-# tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds") 
+tracks <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds")
+
+# final dataset
+tracks <- readRDS("data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy.rds")
+
+tracks <- readRDS("data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy.rds")
+
+
+tracks <- readRDS("data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy.rds")
 
 tracks |>  dplyr::summarise(min = min(date),
                             max = max(date))
@@ -243,7 +251,7 @@ saveRDS(tracks_dist, "data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist
 
 saveRDS(tracks_dist, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds") 
 
-
+saveRDS(tracks_dist, "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist.rds")
 
 # Distance to Seamounts ---------------------------------------------------
 
@@ -252,6 +260,9 @@ knolls      <- sf::st_read("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_
 
 tracks_ready <- readRDS("data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed.rds")
 str(tracks_ready)
+
+
+tracks_dist <- readRDS( "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist.rds")
 
 # Convert to same CRS (important!)
 seamounts   <- sf::st_transform(seamounts, 4326)
@@ -262,7 +273,7 @@ base <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_En
 
 
 # define bounding box around your occurrences
-ext_occ <- terra::ext(vect(tracks_ready))
+ext_occ <- terra::ext(vect(tracks_dist))
 ext_occ
 # ext_buffered <- terra::extend(ext_occ, c(5,5,5,5))  # add ~5° buffer
 # ext_buffered
@@ -294,8 +305,8 @@ dist_seamount_km_4326
 
 terra::writeRaster(dist_seamount_km_4326, "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Processed_Raster_Files/Seamounts_Distance.tif", overwrite = TRUE)
 
-tracks_ready$dist_seamount <- terra::extract(dist_seamount_km_4326, vect(tracks_ready))[,2]
-str(tracks_ready)
+tracks_dist$dist_seamount <- terra::extract(dist_seamount_km_4326, vect(tracks_dist))[,2]
+str(tracks_dist)
 
 
 
@@ -320,14 +331,17 @@ dist_knoll_km_4326
 
 terra::writeRaster(dist_knoll_km_4326, "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Processed_Raster_Files/Knolls_Distance.tif", overwrite = TRUE)
 
-tracks_ready$dist_knoll <- terra::extract(dist_knoll_km_4326, vect(tracks_ready))[,2]
-str(tracks_ready)
+tracks_dist$dist_knoll <- terra::extract(dist_knoll_km_4326, vect(tracks_dist))[,2]
+str(tracks_dist)
 
 
 
 saveRDS(tracks_ready, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extract_processed_seamounts.rds")
 
 
+saveRDS(tracks_dist, "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist.rds")
+
+saveRDS(tracks_dist, "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy_dist.rds")
 
 
-
+saveRDS(tracks_dist, "data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy_dist.rds")

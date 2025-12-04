@@ -306,6 +306,43 @@ writeRaster(sst_stack_0.1, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_W
 
 
 
+
+
+# SST Slope ---------------------------------------------------------------
+
+w <- matrix(1, nrow = 3, ncol = 3)
+# 1) 3x3 moving max and min of SST
+sst_max <- sst_stack_0.1 |>
+  terra::focal(
+    w         = w,
+    fun       = max,
+    na.policy = "omit"
+  )
+
+sst_min <- sst_stack_0.1 |>
+  terra::focal(
+    w         = w,
+    fun       = min,
+    na.policy = "omit"
+  )
+
+# 2) Difference centre -> neighbours
+diff_max <- sst_max - sst_stack_0.1
+diff_min <- sst_stack_0.1 - sst_min
+
+# 3) Max absolute difference (this is Δ°C per cell, at 0.083°)
+sst_slope_max_0.1 <- max(diff_max, diff_min)
+
+varnames(sst_slope_max_0.1) <- "sst_slope"
+
+sst_slope_max_0.1
+plot(sst_slope_max_0.1[[150]])
+
+
+
+writeRaster(sst_slope_max_0.1, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/thetao_sst.slope_month_0.1_ext.tif", overwrite = TRUE)
+
+
 # Mixed layer depth -------------------------------------------------------
 
 
@@ -1056,11 +1093,16 @@ dist_seamounts_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD
 
 dist_knolls_stack_0.1 <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/dist_knolls_month_0.1.tif")
 
+sst_slope_max_0.1 <- terra::rast( "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/thetao_sst.slope_month_0.1_ext.tif")
+
+
+
 sst_mean <- terra::app(sst_stack_0.1, fun = mean, na.rm = TRUE)
 sst_mean
 mld_mean <- terra::app(mld_stack_0.1, fun = mean, na.rm = TRUE)
 wz_mean <- terra::app(wz_stack_0.1, fun = mean, na.rm = TRUE)
 uv_mean <- terra::app(uv_stack_0.1, fun = mean, na.rm = TRUE)
+sst_slope_mean <- terra::app(sst_slope_max_0.1, fun = mean, na.rm = TRUE)
 depth_rast <- depth_stack_0.1[[1]]
 slope_rast <- slope_stack_0.1[[1]]
 rough_rast <- rough_stack_0.1[[1]]
@@ -1071,6 +1113,7 @@ lat_rast <- lat_stack_0.1[[1]]
 lon_rast <- lon_stack_0.1[[1]]
 dist_seamounts <- dist_seamounts_stack_0.1[[1]]
 dist_knolls <- dist_knolls_stack_0.1[[1]]
+
 
 chl_mean <- terra::app(chl_stack_0.1, fun = mean, na.rm = TRUE)
 chl_mean <- terra::mask(chl_mean, depth_rast)
@@ -1101,6 +1144,7 @@ names(lat_rast) <- "lat"
 names(lon_rast) <- "lon"
 names(dist_seamounts) <- "dist_seamount"
 names(dist_knolls) <- "dist_knoll"
+names(sst_slope_mean) <- "sst_slope"
 
 # temporal dummy 
 
@@ -1149,7 +1193,8 @@ mean_month_predistor_stack <- c(sst_mean,
                                 lat_rast,
                                 lon_rast,
                                 dist_seamounts,
-                                dist_knolls)
+                                dist_knolls,
+                                sst_slope_mean)
 
 mean_month_predistor_stack
 
@@ -1317,6 +1362,7 @@ month
 id_rast
 lat_rast
 lon_rast
+sst_slope_mean
 
 mean_month_predistor_stack_log <- c(sst_mean,
                                 chl_mean,
@@ -1334,7 +1380,8 @@ mean_month_predistor_stack_log <- c(sst_mean,
                                 lat_rast,
                                 lon_rast,
                                 dist_seamounts_rast,
-                                dist_knolls_rast)
+                                dist_knolls_rast,
+                                sst_slope_mean)
 
 mean_month_predistor_stack_log
 

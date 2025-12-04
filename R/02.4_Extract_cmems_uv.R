@@ -27,8 +27,8 @@ nc_files <- list.files(nc_folder, pattern = "\\.nc$", full.names = TRUE)
 nc_files
 
 ## Create a raster stack containing all the daily currents data
-curr_stack_u <- terra::rast(nc_files[6:22], subds = "uo")
-curr_stack_v <- terra::rast(nc_files[6:22], subds = "vo")
+curr_stack_u <- terra::rast(nc_files, subds = "uo")
+curr_stack_v <- terra::rast(nc_files, subds = "vo")
 
 # add dates as names from time stamps
 names(curr_stack_u) <- terra::time(curr_stack_u)
@@ -54,6 +54,13 @@ tracks <- readRDS("data/work_files/Tracks_PA_w_dynSDM_10_raw_2010_2025_bathy_dis
 
 tracks <- readRDS("data/work_files/Tracks_sims_50_raw_2010_2025_bathy_dist_sst.rds")
 tracks <- readRDS("data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_sst.rds")
+
+tracks <- readRDS( "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist_sst.rds")
+
+tracks <- readRDS( "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy_dist_sst.rds")
+
+
+tracks <- readRDS("data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy_dist_sst.rds")
 
 
 dt <- sight
@@ -107,9 +114,7 @@ dt_uv <- dt_uo_vo |>
   dplyr::mutate(
     uv = sqrt(uo^2 + vo^2), # overall velocity
     curr_dir = atan2(uo, vo) * 180 / pi, # adding current direction 
-    curr_dir = ifelse(curr_dir < 0, curr_dir + 360, curr_dir), #ensuring angles are in 360
-    lat = y,
-    lon = x
+    curr_dir = ifelse(curr_dir < 0, curr_dir + 360, curr_dir) #ensuring angles are in 360
   )
 
 
@@ -144,7 +149,11 @@ saveRDS(track_uv, "data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_ss
 
 
 
+saveRDS(track_uv, "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist_sst_uv.rds")
 
 
 
+saveRDS(track_uv, "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy_dist_sst_uv.rds")
 
+
+saveRDS(track_uv, "data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy_dist_sst_uv.rds")
