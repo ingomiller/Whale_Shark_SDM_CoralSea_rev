@@ -86,6 +86,8 @@ output_path <- "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_
 nc_folder <- "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Copernicus/CMEMS_Global/Monthly/wo_after2024/"
 depth_layer <- 5  # User-defined depth layer (e.g., 5m)
 
+
+reference_raster_0.1 <- terra::rast("data/processed/reference_raster_0.1.tif")
 reference_raster_0.1 <- terra::rast("data/processed/reference_raster_0.1_ext.tif")
 reference_raster_0.1
 
@@ -420,6 +422,7 @@ names(Rough) <- "Roughness"
 
 
 # Resample to match extent and resolution
+reference_raster_0.1 <- terra::rast("data/processed/reference_raster_0.1.tif")
 reference_raster_0.1 <- terra::rast("data/processed/reference_raster_0.1_ext.tif")
 reference_raster_0.1
 bathy_raster_0.1 <- terra::resample(bathy_raster, reference_raster_0.1, method = "bilinear", threads = TRUE)
@@ -502,6 +505,7 @@ terra::plot(cont_2000, col = "blue", add = TRUE)
 
 ## calculate distance between the two layers
 dist_200_0.1 <- terra::distance(bathy_raster_0.1_mask, cont_200, unit = "m", method = "haversine") # haversine = great circle distance 
+dist_200_0.1
 dist_1000_0.1 <- terra::distance(bathy_raster_0.1_mask, cont_1000, unit = "m", method = "haversine")
 dist_2000_0.1 <- terra::distance(bathy_raster_0.1_mask, cont_2000, unit = "m", method = "haversine")
 

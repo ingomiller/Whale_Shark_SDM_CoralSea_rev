@@ -885,7 +885,7 @@ P_sst <- SDMtune::plotResponse(m,
                                fun = mean,
                                color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("sst ("*degree*"C)")) +
+  labs(x = expression("SST ("*degree*"C)")) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
@@ -899,7 +899,7 @@ P_chl <- SDMtune::plotResponse(m,
                                fun = mean,
                                color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("chl (log(mg m"^{-3}*"))")) +
+  labs(x = expression("Chl (log(mg m"^{-3}*"))")) +
   #scale_x_log10() +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
@@ -916,7 +916,7 @@ P_uv <- SDMtune::plotResponse(m,
                               fun = mean,
                               color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("uv (m s"^{-1}*")")) +
+  labs(x = expression("Cur_uv (m s"^{-1}*")")) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
@@ -930,7 +930,7 @@ P_wz <- SDMtune::plotResponse(m,
                               fun = mean,
                               color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("wz (m s"^{-1}*")")) +
+  labs(x = expression("Wz (m s"^{-1}*")")) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
@@ -944,7 +944,7 @@ P_mld <- SDMtune::plotResponse(m,
                                fun = median,
                                color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = "mld (m)") +
+  labs(x = "MLD (m)") +
   # scale_x_log10() +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
@@ -960,7 +960,7 @@ P_depth <- SDMtune::plotResponse(m,
                                  rug = TRUE,
                                  fun = mean,
                                  color = "hotpink") +
-  labs(x = "depth (m)") +
+  labs(x = "Depth (m)") +
   ggplot2::scale_y_continuous(limits = c(-0.05, 1)) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
@@ -975,7 +975,7 @@ P_slope <- SDMtune::plotResponse(m,
                                  fun = mean,
                                  color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("slope ("*degree*")")) +
+  labs(x = expression("Slope ("*degree*")")) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
@@ -989,7 +989,7 @@ P_dist <- SDMtune::plotResponse(m,
                                 fun = mean,
                                 color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = "dist2000 (m)") +
+  labs(x = "Dist2000 (km)") +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
@@ -1003,6 +1003,7 @@ P_month <- SDMtune::plotResponse(m,
                                  fun = mean,
                                  color = "hotpink") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "Month") +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
@@ -1014,6 +1015,8 @@ marginal_plots
 
 
 ggsave("MaxEnt_RepsonsePlots_Marginal_Tracking_mp.png", plot = marginal_plots, path ="outputs/final_figures", scale =1, width = 18, height = 20, units = "cm", dpi = 300)
+
+ggsave("Figure_S8.png", plot = marginal_plots, path ="/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/", scale =1, width = 18, height = 20, units = "cm", dpi = 300)
 
 
 

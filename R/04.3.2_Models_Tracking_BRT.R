@@ -17,6 +17,7 @@ library(SDMtune)
 library(patchwork)
 library(blockCV)
 library(tmap)
+library(gbm)
 source("R/00_Helper_Functions.R")
 
 
@@ -248,6 +249,7 @@ str(model_dt)
 #   dplyr::select(id, lon, lat, PA, month, depth, slope, roughness, dist2000, thetao,uv, mltost, chl, wz, sst_slope)
 # 
 # write_csv(model_dt_repo, "models/repo/model_data_repo.csv")
+# saveRDS(model_dt, "models/objects/model_dt_crw_mp_final.rds")
 
 swd <- SDMtune::SWD(
   species = "Rhincodon_typus",
@@ -394,6 +396,17 @@ cv_brt0 <- SDMtune::train(method = "BRT",
                           data = swd,
                           folds = sp_blocks,
                           # folds = random_folds,
+                          # folds = folds_sdm,
+                          interaction.depth = 5,
+                          shrinkage = 0.005,
+                          bag.fraction = 0.75,
+                          n.trees = 5000)
+
+
+cv_brt0 <- SDMtune::train(method = "BRT",
+                          data = swd,
+                          # folds = sp_blocks,
+                          folds = random_folds,
                           # folds = folds_sdm,
                           interaction.depth = 5,
                           shrinkage = 0.005,
@@ -920,9 +933,25 @@ cat("Testing AUC after: ", SDMtune::auc(cv_brt4, test = TRUE))
 
 
 # cv_brt4 <- readRDS("models/objects/Tracks_BRT_CV_Models_SDMtune_mp.rds")
+
+cv_brt_radnom <- SDMtune::train(method = "BRT",
+                          data = swd,
+                          folds = random_folds,
+                          interaction.depth = 5,
+                          shrinkage = 0.01,
+                          bag.fraction = 0.75,
+                          n.trees = 10000)
+
+cv_brt_radnom
+
 cv_brt4
 m <- cv_brt4
+m <- cv_brt_radnom
 m
+
+
+cat("Testing TSS random CV: ", SDMtune::tss(cv_brt_radnom, test = TRUE))
+cat("Testing AUC random CV: ", SDMtune::auc(cv_brt_radnom, test = TRUE))
 
 ROCplots <- lapply(seq_len(ncol(m@folds$test)), function(i){
   idx <- m@folds$test[, i]
@@ -1059,6 +1088,54 @@ vi_brt
 SDMtune::plotVarImp(vi_brt)
 
 
+# vi_brt <- vi_brt |> 
+#   dplyr::mutate(
+#     Variable = case_when(
+#       Variable == "mltost" ~ "MLD",
+#       Variable == "thetao" ~ "SST",
+#       Variable == "dist2000" ~ "Dist2000",
+#       Variable == "depth" ~ "Depth",
+#       Variable == "chl" ~ "Chl",
+#       Variable == "uv" ~ "Cur_uv",
+#       Variable == "slope" ~ "Slope",
+#       Variable == "wz" ~ "Wz",
+#       Variable == "month" ~ "Month",
+#       TRUE ~ Variable  # Keep all other values unchanged
+#     ),
+#     Variable = factor(Variable, levels = c("Month", "Depth", "Dist2000", "Chl", "SST", "Slope", "Cur_uv", "MLD", "Wz")),
+#     importance = Permutation_importance,
+#     # panel_fill = importance / max(importance),
+#     ymin = pmax(0, importance - sd),   # don’t go below 0
+#     ymax = importance + sd
+#     )
+# 
+# rel_inf_plot <- ggplot(vi_brt, aes(x = Variable, y = importance)) +
+#   geom_bar(stat = "identity") +
+#   geom_errorbar(
+#     aes(ymin = ymin, ymax = ymax),
+#     width = 0.2,                       # whisker width
+#     linewidth = 0.3
+#   ) +
+#   coord_flip() +
+#   labs(x = "Predictor", y = "Relative Influence (%)") +
+#   scale_y_continuous(expand = c(0, 1), limits = c(0, 40), breaks = seq(0, 40, by = 5)) +
+#   scale_fill_gradientn(colors = scales::brewer_pal(palette = "Blues")(9), 
+#                        name = "Relative Influence",
+#                        limits = c(0, 1)) +
+#   # geom_text(aes(label = round(importance, 1)), hjust = -0.1, size = 2.5, fontface = "italic") +  # Add labels slightly outside bars
+#   # facet_grid(cols = vars(algorithm), scales = "free") +
+#   theme_bw() +
+#   theme(
+#     #lot.margin = unit(c(0.5, 0.5, 0.5, 0.1), "cm"),
+#     legend.position = "none",
+#     strip.background = element_rect(fill = "white"),
+#     axis.title = element_text(size = 10),
+#     axis.text = element_text(size = 8))
+
+
+rel_inf_plot
+
+
 jk4 <- SDMtune::doJk(cv_brt4, 
                      metric = "tss", 
                      test = TRUE)
@@ -1085,10 +1162,12 @@ P_sst <- SDMtune::plotResponse(m,
                       fun = mean,
                       color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("sst ("*degree*"C)")) +
+  labs(x = expression("SST ("*degree*"C)")) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
+
+P_sst
 
 P_chl <- SDMtune::plotResponse(m, 
                               var = "chl", 
@@ -1099,7 +1178,7 @@ P_chl <- SDMtune::plotResponse(m,
                               fun = mean,
                               color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("chl (log(mg m"^{-3}*"))")) +
+  labs(x = expression("Chl (log(mg m"^{-3}*"))")) +
   # scale_x_log10() +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
@@ -1116,11 +1195,14 @@ P_uv <- SDMtune::plotResponse(m,
                       fun = mean,
                       color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("uv (m s"^{-1}*")")) +
+  labs(x = expression("Cur_uv (m s"^{-1}*")")) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
 
+P_uv
+
+library(sciscales)
 P_wz <- SDMtune::plotResponse(m, 
                       var = "wz", 
                       type = "cloglog", 
@@ -1130,10 +1212,17 @@ P_wz <- SDMtune::plotResponse(m,
                       fun = mean,
                       color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("wz (m s"^{-1}*")")) +
+  # ggplot2::scale_x_continuous(
+  #   labels = scales::label_scientific(digits = 1)
+  # ) +
+  scale_x_continuous(breaks = c(-1e-4, 0, 1e-4), labels = sciscales::label_sci()) + 
+  labs(x = expression("Wz (m s"^{-1}*")")) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
+
+
+P_wz
 
 P_mld <- SDMtune::plotResponse(m, 
                       var = "mltost", 
@@ -1144,7 +1233,7 @@ P_mld <- SDMtune::plotResponse(m,
                       fun = median,
                       color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = "mld (m)") +
+  labs(x = "MLD (m)") +
   # scale_x_log10() +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
@@ -1160,11 +1249,13 @@ P_depth <- SDMtune::plotResponse(m,
                       rug = TRUE,
                       fun = mean,
                       color = "steelblue") +
-  labs(x = "depth (m)") +
+  labs(x = "Depth (m)") +
   ggplot2::scale_y_continuous(limits = c(-0.05, 1)) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
+
+P_depth
 
 P_slope <- SDMtune::plotResponse(m, 
                       var = "slope", 
@@ -1175,10 +1266,12 @@ P_slope <- SDMtune::plotResponse(m,
                       fun = mean,
                       color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = expression("slope ("*degree*")")) +
+  labs(x = expression("Slope ("*degree*")")) +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
+
+P_slope
 
 P_dist <- SDMtune::plotResponse(m,
                       var = "dist2000",
@@ -1189,10 +1282,12 @@ P_dist <- SDMtune::plotResponse(m,
                       fun = mean,
                       color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
-  labs(x = "dist2000 (km)") +
+  labs(x = "Dist2000 (km)") +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
+
+P_dist
 
 # P_dist200 <- SDMtune::plotResponse(m,
 #                                 var = "dist200",
@@ -1246,6 +1341,7 @@ P_month <- SDMtune::plotResponse(m,
                       fun = mean,
                       color = "steelblue") +
   ggplot2::scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "Month") +
   theme_bw() +
   theme(axis.title = element_text(size = 10),
         axis.text = element_text(size = 8))
@@ -1273,6 +1369,8 @@ marginal_plots
 
 ggsave("BRT_RepsonsePlots_Marginal_Tracking_mp_final.png", plot = marginal_plots, path ="outputs/final_figures", scale =1, width = 18, height = 20, units = "cm", dpi = 300) 
 
+ggsave("Figure_S7.png", plot = marginal_plots, path ="/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/", scale =1, width = 18, height = 20, units = "cm", dpi = 300) 
+
 
 ggsave("BRT_RepsonsePlots_Marginal_Tracking_mp_RADOM_FOLDS_COMPARISON.png", plot = marginal_plots, path ="outputs/final_figures", scale =1, width = 18, height = 20, units = "cm", dpi = 300) 
 
@@ -1293,13 +1391,15 @@ marginal_plots_ms <- (
 marginal_plots_ms
 
 
-ggsave("BRT_RepsonsePlots_Marginal_Tracking_mp_final_main_article.png", plot = marginal_plots_ms, path ="outputs/final_figures", scale =1, width = 18, height = 15, units = "cm", dpi = 300) 
+ggsave("BRT_RepsonsePlots_Marginal_Tracking_mp_final_main_article.png", plot = marginal_plots_ms, path ="outputs/final_figures", scale =1, width = 18, height = 12, units = "cm", dpi = 300) 
 
-ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/Figure_3_MargResp.png", plot = marginal_plots_ms, scale =1, width = 18, height = 12, units = "cm", dpi = 600)
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Figure_3.png", plot = marginal_plots_ms, scale =1, width = 18, height = 12, units = "cm", dpi = 600)
 
-ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/Figure_S__RelImp_models.pdf", plot = marginal_plots_ms, scale =1, width = 17, height = 12, units = "cm", dpi = 600, device = "pdf")
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Figure_3.pdf", plot = marginal_plots_ms, scale =1, width = 18, height = 12, units = "cm", dpi = 600, device = "pdf")
 
-ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/Figure_S__RelImp_models.eps", plot = marginal_plots_ms, scale =1, width = 17, height = 12, units = "cm", dpi = 600)
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Figure_3.eps", plot = marginal_plots_ms, scale =1, width = 18, height = 12, units = "cm", dpi = 600)
+
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Figure_3.tif", plot = marginal_plots_ms, scale =1, width = 18, height = 12, units = "cm", dpi = 600)
 
 
 
@@ -2214,7 +2314,7 @@ SDMtune::plotPA(monthly_predictions_stack[[66]],
 
 writeRaster(monthly_predictions_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_BRT_monthly_2019_2025_rev_mp_crwPA.tif", overwrite = TRUE)
 
-writeRaster(monthly_predictions_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_BRT_monthly_2019_2025_rev_mp_crwPA_RANDOM_FOLDS_CV.tif", overwrite = TRUE)
+# writeRaster(monthly_predictions_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_BRT_monthly_2019_2025_rev_mp_crwPA_RANDOM_FOLDS_CV.tif", overwrite = TRUE)
 
 
 

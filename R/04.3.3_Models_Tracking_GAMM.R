@@ -174,8 +174,8 @@ form <- PA ~
   s(depth,   bs = "cr", k = 5) +
   s(mltost, bs = "cr", k = 5) +
   s(slope,   bs = "cr", k = 5) +
-  s(dist2000, bs = "cr", k = 5) +
-  s(sst_slope, bs = "cr", k = 5) +
+  s(dist2000, bs = "cr", k = 5) 
+  # s(sst_slope, bs = "cr", k = 5)
   # Month interactions for *dynamic* vars (small k, shrinkable)
   # ti(thetao,   month, bs = c("tp","cr"), k = c(4,3)) +
   # ti(chl,      month, bs = c("cr","cr"), k = c(4,3)) +
@@ -185,7 +185,7 @@ form <- PA ~
   # ti(sst_slope,       month, bs = c("cr","cr"), k = c(4,3)) +
   # PROXY for east-coast vs offshore seasonal shift
   # ti(depth, month, bs = c("cr","cr"), k = c(4,3)) +
-  s(id, bs = "re")
+  # s(id, bs = "re")
 
 
 
@@ -195,7 +195,8 @@ form
 model_data <- model_dt
 str(model_data)
 
-# saveRDS(model_data, "data/processed/model_input_data_processed_crwPA.rds")
+saveRDS(model_data, "data/processed/model_input_data_processed_crwPA.rds")
+saveRDS(model_data, "models/objects/model_dt_crw_mp_final_GAMM.rds")
 # 
 # model_data <- readRDS("data/processed/model_input_data_processed.rds") # this one worked before; do not overwrite
 
@@ -267,6 +268,268 @@ visreg::visreg(gam.full, xvar = "thetao", by = "month",
        gg = TRUE) +
   ggplot2::labs(y = "Predicted probability", x = "thetao (°C)") +
   ggplot2::theme_bw()
+
+
+
+
+### Sensitivity analysis for supplemetns: to decide if random effect for ID inclduded or not and to tets effect of interactions
+
+form_full <- PA ~
+  s(thetao,  bs = "tp", k = 6) +
+  s(uv,      bs = "cr", k = 5) +
+  s(wz,      bs = "cr", k = 5) +
+  s(chl,     bs = "cr", k = 5) +
+  s(depth,   bs = "cr", k = 5) +
+  s(slope,   bs = "cr", k = 5) +
+  s(dist2000, bs = "cr", k = 5) +
+  # Month interactions for *dynamic* vars (small k, shrinkable)
+  ti(thetao,   month, bs = c("tp","cr"), k = c(4,3)) +
+  ti(chl,      month, bs = c("cr","cr"), k = c(4,3)) +
+  ti(uv,       month, bs = c("cr","cr"), k = c(4,3)) +
+  ti(wz,       month, bs = c("cr","cr"), k = c(4,3)) +
+  s(id, bs = "re")
+
+form_simple1 <- PA ~
+  s(thetao,  bs = "tp", k = 6) +
+  s(uv,      bs = "cr", k = 5) +
+  s(wz,      bs = "cr", k = 5) +
+  s(chl,     bs = "cr", k = 5) +
+  s(depth,   bs = "cr", k = 5) +
+  s(slope,   bs = "cr", k = 5) +
+  s(dist2000, bs = "cr", k = 5) +
+  # Month interactions for *dynamic* vars (small k, shrinkable)
+  ti(thetao,   month, bs = c("tp","cr"), k = c(4,3)) +
+  ti(chl,      month, bs = c("cr","cr"), k = c(4,3)) +
+  ti(uv,       month, bs = c("cr","cr"), k = c(4,3)) +
+  ti(wz,       month, bs = c("cr","cr"), k = c(4,3)) 
+
+form_simple2 <- PA ~
+  s(thetao,  bs = "tp", k = 6) +
+  s(uv,      bs = "cr", k = 5) +
+  s(wz,      bs = "cr", k = 5) +
+  s(chl,     bs = "cr", k = 5) +
+  s(depth,   bs = "cr", k = 5) +
+  s(slope,   bs = "cr", k = 5) +
+  s(dist2000, bs = "cr", k = 5)
+
+
+form_full_cc <- PA ~
+  s(thetao,  bs = "tp", k = 6) +
+  s(uv,      bs = "cr", k = 5) +
+  s(wz,      bs = "cr", k = 5) +
+  s(chl,     bs = "cr", k = 5) +
+  s(depth,   bs = "cr", k = 5) +
+  s(slope,   bs = "cr", k = 5) +
+  s(dist2000, bs = "cr", k = 5) +
+  # Month interactions for *dynamic* vars (small k, shrinkable)
+  ti(thetao,   month, bs = c("tp","cc"), k = c(4,6)) +
+  ti(chl,      month, bs = c("cr","cc"), k = c(4,6)) +
+  ti(uv,       month, bs = c("cr","cc"), k = c(4,6)) +
+  ti(wz,       month, bs = c("cr","cc"), k = c(4,6)) +
+  s(id, bs = "re")
+
+
+
+
+gam_sens.full <- mgcv::bam(form_full,
+                      family = binomial(link="cloglog"), 
+                      method="fREML", 
+                      control =  mgcv::gam.control(maxit = 500, epsilon = 1e-5, nthreads = 6),
+                      discrete = TRUE,
+                      weights = weights_PA,
+                      na.action = na.fail,
+                      data = model_data,
+                      select = TRUE,
+                      gamma = 1
+)
+
+
+summary(gam_sens.full)
+AIC(gam_sens.full)
+
+
+gam_sens.simple1 <- mgcv::bam(form_simple1,
+                           family = binomial(link="cloglog"), 
+                           method="fREML", 
+                           control =  mgcv::gam.control(maxit = 500, epsilon = 1e-5, nthreads = 6),
+                           discrete = TRUE,
+                           weights = weights_PA,
+                           na.action = na.fail,
+                           data = model_data,
+                           select = TRUE,
+                           gamma = 1
+)
+
+
+summary(gam_sens.simple1)
+AIC(gam_sens.simple1)
+
+
+gam_sens.simple2 <- mgcv::bam(form_simple2,
+                              family = binomial(link="cloglog"), 
+                              method="fREML", 
+                              control =  mgcv::gam.control(maxit = 500, epsilon = 1e-5, nthreads = 6),
+                              discrete = TRUE,
+                              weights = weights_PA,
+                              na.action = na.fail,
+                              data = model_data,
+                              select = TRUE,
+                              gamma = 1
+)
+
+
+summary(gam_sens.simple2)
+AIC(gam_sens.simple2)
+
+gam_sens.full_cc <- mgcv::bam(form_full_cc,
+                           family = binomial(link="cloglog"), 
+                           method="fREML", 
+                           control =  mgcv::gam.control(maxit = 500, epsilon = 1e-5, nthreads = 6),
+                           discrete = TRUE,
+                           weights = weights_PA,
+                           na.action = na.fail,
+                           data = model_data,
+                           select = TRUE,
+                           gamma = 1
+)
+
+
+summary(gam_sens.full)
+AIC(gam_sens.full)
+
+
+predictors_mean <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Predictor_Rasters_rev/mean_month_predictor_stack_0.1_ext_log.tif")
+names(predictors_mean)
+plot(predictors_mean)
+
+
+
+gam <- gam_sens.full
+
+relevant_vars <- all.vars(gam$formula)[-1] # Excluding the intercept
+gam$formula
+relevant_vars
+relevant_vars <- relevant_vars[ !(relevant_vars %in% c("k_general", "year", "month")) ]
+
+
+predictors <- predictors_mean[[relevant_vars]]
+# predictors
+# names(predictors)
+# plot(predictors)
+
+
+map1 <- terra::predict(predictors,
+                      model = gam,
+                      type = "response",
+                      const = (data.frame( month = 7)),
+                      exclude = c("s(id)", "s(year)", "s(month)"),
+                      na.rm = TRUE
+)
+
+
+map1
+
+terra::plot(map1, range = c(0, 1), xlim = c(140, 170), ylim = c(-35, 0))
+
+
+gam <- gam_sens.simple1
+
+relevant_vars <- all.vars(gam$formula)[-1] # Excluding the intercept
+gam$formula
+relevant_vars
+relevant_vars <- relevant_vars[ !(relevant_vars %in% c("k_general", "year", "month")) ]
+
+
+predictors <- predictors_mean[[relevant_vars]]
+# predictors
+# names(predictors)
+# plot(predictors)
+
+
+map2 <- terra::predict(predictors,
+                      model = gam,
+                      type = "response",
+                      const = (data.frame( month = 7)),
+                      exclude = c("s(id)", "s(year)", "s(month)"),
+                      na.rm = TRUE
+)
+
+
+map2
+
+terra::plot(map2, range = c(0, 1), xlim = c(140, 170), ylim = c(-35, 0))
+
+
+
+gam <- gam_sens.simple2
+
+relevant_vars <- all.vars(gam$formula)[-1] # Excluding the intercept
+gam$formula
+relevant_vars
+relevant_vars <- relevant_vars[ !(relevant_vars %in% c("k_general", "year", "month")) ]
+
+
+predictors <- predictors_mean[[relevant_vars]]
+# predictors
+# names(predictors)
+# plot(predictors)
+
+
+map3 <- terra::predict(predictors,
+                      model = gam,
+                      type = "response",
+                      const = (data.frame( month = 7)),
+                      exclude = c("s(id)", "s(year)", "s(month)"),
+                      na.rm = TRUE
+)
+
+
+map3
+
+terra::plot(map3, range = c(0, 1), xlim = c(140, 170), ylim = c(-35, 0))
+
+
+
+
+gam <- gam_sens.full_cc
+
+relevant_vars <- all.vars(gam$formula)[-1] # Excluding the intercept
+gam$formula
+relevant_vars
+relevant_vars <- relevant_vars[ !(relevant_vars %in% c("k_general", "year", "month")) ]
+
+
+predictors <- predictors_mean[[relevant_vars]]
+# predictors
+# names(predictors)
+# plot(predictors)
+
+
+map4 <- terra::predict(predictors,
+                      model = gam,
+                      type = "response",
+                      const = (data.frame( month = 7)),
+                      exclude = c("s(id)", "s(year)", "s(month)"),
+                      na.rm = TRUE
+)
+
+
+map4
+
+
+terra::plot(map4, range = c(0, 1), xlim = c(140, 170), ylim = c(-35, 0))
+
+
+
+par(mfrow = c(2,2))
+terra::plot(map1, range = c(0, 1), xlim = c(140, 170), ylim = c(-35, 0))
+terra::plot(map2, range = c(0, 1), xlim = c(140, 170), ylim = c(-35, 0))
+terra::plot(map3, range = c(0, 1), xlim = c(140, 170), ylim = c(-35, 0))
+terra::plot(map4, range = c(0, 1), xlim = c(140, 170), ylim = c(-35, 0))
+
+
+
+
 
 
 
@@ -701,6 +964,24 @@ fml <- PA ~
   # ti(depth, month, bs = c("cr","cr"), k = c(4,3)) +
   # s(id, bs = "re")
 
+fml <- PA ~
+  s(thetao,  bs = "tp", k = 6) +
+  s(uv,      bs = "cr", k = 5) +
+  s(wz,      bs = "cr", k = 5) +
+  s(chl,     bs = "cr", k = 5) +
+  s(depth,   bs = "cr", k = 5) +
+  s(mltost, bs = "cr", k = 5) +
+  s(slope,   bs = "cr", k = 5) +
+  s(dist2000, bs = "cr", k = 5) +
+  # Month interactions for *dynamic* vars (small k, shrinkable)
+  ti(thetao,   month, bs = c("tp","cc"), k = c(4,6)) +
+  ti(chl,      month, bs = c("cr","cc"), k = c(4,6)) +
+  ti(uv,       month, bs = c("cr","cc"), k = c(4,6)) +
+  ti(wz,       month, bs = c("cr","cc"), k = c(4,6)) +
+  ti(mltost,   month, bs = c("cr","cc"), k = c(4,6)) 
+# PROXY for east-coast vs offshore seasonal shift
+# ti(depth, month, bs = c("cr","cr"), k = c(4,3)) +
+# s(id, bs = "re")
 
 
 
@@ -708,7 +989,8 @@ fml <- PA ~
 
 
 
-sp_blocks <- sb1
+
+# sp_blocks <- sb1
 gamm_cv_out <- gam_cv(
   dat   = model_data,             
   fid   = sp_blocks$folds_ids,                   
@@ -731,14 +1013,18 @@ gamm_vi_df <- gamm_cv_out$varimp |>
 gamm_vi_df
 
 
-saveRDS(gamm_vi_df, "models/tables/GAMM_Var_Importance_CV.rds")
+# saveRDS(gamm_vi_df, "models/tables/GAMM_Var_Importance_CV.rds")
 
-
+# gamm_vi_df <- readRDS("models/tables/GAMM_Var_Importance_CV.rds")
 
 # Miller MCS
 
 # gcv is what gam_cv() returned
 models <- gamm_cv_out$models
+
+
+cv <- models
+cv[[1]]
 
 # container for out-of-fold predictions
 pred_oof <- numeric(nrow(dat))
@@ -807,7 +1093,7 @@ summary(ac_resid)
 
 
 #  fold’s GAM
-m <- cv$models[[5]]
+m <- models[[5]]
 summary(m)
 plot(m, pages=1)
 
@@ -821,10 +1107,18 @@ plot(model, pages = 1, scheme = 1, shade = TRUE,
      seWithMean = TRUE, rug = TRUE, scale = 0)
 
 
+relevant_vars <- all.vars(model$formula)[-1] # Excluding the intercept
+model$formula
+relevant_vars
+relevant_vars <- relevant_vars[ !(relevant_vars %in% c("k_general", "year", "month")) ]
+
+
+predictors <- predictors_mean[[relevant_vars]]
+
 map <- terra::predict(predictors,
                       model = model,
                       type = "response",
-                      const = (data.frame(month = 12)),
+                      const = (data.frame(month = 2)),
                       exclude = c( "s(id)"),
                       na.rm = TRUE
 )
@@ -833,7 +1127,7 @@ map <- terra::predict(predictors,
 map
 
 par(mfrow = c(1,1))
-plot(map, range = c(0, 1))
+# plot(map, range = c(0, 1))
 terra::plot(map, range = c(0, 1), xlim = c(140, 170), ylim = c(-35, 0))
 
 
@@ -846,6 +1140,10 @@ saveRDS(cv, "models/objects/Tracks_GAMM_CV_Models_mp_crwPA.rds")
 
 gam <- readRDS("models/objects/Tracks_GAMM_final_Model_mp_crwPA.rds")
 cv <- readRDS("models/objects/Tracks_GAMM_CV_Models_mp_crwPA.rds")
+
+summary(gam)
+
+summary(cv$models[[1]])
 # Response curves ---------------------------------------------------------
 model <- gam
 rug = 4
@@ -855,7 +1153,7 @@ p.depth <- sjPlot::plot_model(model, type = "pred", terms = "depth", colors = c(
                               axis.lim =  c(0, 1),
                               show.data = FALSE,
                               show.intercept = FALSE) +
-  labs(x = expression("depth (m)"), y = "Probability of Presence", title = NULL) +
+  labs(x = expression("Depth (m)"), y = "Probability of Presence", title = NULL) +
   # presences (top)
   ggplot2::geom_rug(
     data = model_dt |>  dplyr::filter(PA == 1),
@@ -892,7 +1190,7 @@ p.slope <- sjPlot::plot_model(model, type = "pred", terms = "slope", colors = c(
                               show.intercept = FALSE) +
   # geom_jitter(data = model_dt, aes(x = Slope, y = PA), 
   #             color = "grey20", width = 0, height = 0, alpha = 0.5, size = 1, shape = 1) + 
-  labs(x = expression("slope ("*degree*")"), y = "Probability of Presence", title = NULL) +
+  labs(x = expression("Slope ("*degree*")"), y = "Probability of Presence", title = NULL) +
   # presences (top)
   ggplot2::geom_rug(
     data = model_dt |>  dplyr::filter(PA == 1),
@@ -927,7 +1225,7 @@ p.dist <- sjPlot::plot_model(model, type = "pred", terms = "dist2000", colors = 
                              axis.lim =  c(0, 1),
                              show.data = FALSE,
                              show.intercept = FALSE) +
-  labs(x = "dist2000 (km)", y = "Probability of Presence", title = NULL) +
+  labs(x = "Dist2000 (km)", y = "Probability of Presence", title = NULL) +
   # presences (top)
   ggplot2::geom_rug(
     data = model_dt |>  dplyr::filter(PA == 1),
@@ -962,7 +1260,7 @@ p.sst <- sjPlot::plot_model(model, type = "pred", terms = "thetao", colors = c("
                             axis.lim =  c(0, 1),
                             show.data = FALSE,
                             show.intercept = FALSE) +
-  labs(x = expression("sst ("*degree*"C)"),  y = "Probability of Presence", title = NULL) +
+  labs(x = expression("SST ("*degree*"C)"),  y = "Probability of Presence", title = NULL) +
   # presences (top)
   ggplot2::geom_rug(
     data = model_dt |>  dplyr::filter(PA == 1),
@@ -1000,7 +1298,7 @@ p.uv <- sjPlot::plot_model(model, type = "pred", terms = "uv", colors = c("turqu
                            show.p = FALSE) +
   # geom_jitter(data = model_dt, aes(x = uv, y = PA),
   #             color = "grey20", width = 0, height = 0, alpha = 0.5, size = 1, shape = 1) +
-  labs(x = expression("uv (m s"^{-1}*")"), y = "Probability of Presence", title = NULL) +
+  labs(x = expression("Cur_uv (m s"^{-1}*")"), y = "Probability of Presence", title = NULL) +
   # presences (top)
   ggplot2::geom_rug(
     data = model_dt |>  dplyr::filter(PA == 1),
@@ -1033,7 +1331,7 @@ p.wz <- sjPlot::plot_model(model, type = "pred", terms = "wz", colors = c("turqu
                            axis.lim =  c(0, 1),
                            show.data = FALSE,
                            show.intercept = FALSE) +
-  labs(x = expression("wz (m s"^{-1}*")"), y = "Probability of Presence", title = NULL) +
+  labs(x = expression("Wz (m s"^{-1}*")"), y = "Probability of Presence", title = NULL) +
   # presences (top)
   ggplot2::geom_rug(
     data = model_dt |>  dplyr::filter(PA == 1),
@@ -1067,7 +1365,7 @@ p.chl <- sjPlot::plot_model(model, type = "pred", terms = "chl", colors = c("tur
                            axis.lim =  c(0, 1),
                            show.data = FALSE,
                            show.intercept = FALSE) +
-  labs(x = expression("chl (log(mg m"^{-3}*"))"), y = "Probability of Presence", title = NULL) +
+  labs(x = expression("Chl (log(mg m"^{-3}*"))"), y = "Probability of Presence", title = NULL) +
   # presences (top)
   ggplot2::geom_rug(
     data = model_dt |>  dplyr::filter(PA == 1),
@@ -1102,7 +1400,7 @@ p.mld <- sjPlot::plot_model(model, type = "pred", terms = "mltost", colors = c("
                             axis.lim =  c(0, 1),
                             show.data = FALSE,
                             show.intercept = FALSE) +
-  labs(x = expression("mld (m)"), y = "Probability of Presence", title = NULL) +
+  labs(x = expression("MLD (m)"), y = "Probability of Presence", title = NULL) +
   # presences (top)
   ggplot2::geom_rug(
     data = model_dt |>  dplyr::filter(PA == 1),
@@ -1158,7 +1456,7 @@ pal_bal <- cmocean::cmocean(
 
 model
 p.sst_m <- visreg::visreg2d(model, xvar = "thetao", yvar = "month", scale = "response", plot.type = "gg",
-                 xlab = expression("sst ("*degree*"C)"), ylab = "month", zlab = "Probability of presence",
+                 xlab = expression("SST ("*degree*"C)"), ylab = "Month", zlab = "Rel. Habitat Suitability",
                  theta = 145, phi = 30, zlim = c(0,1)) +
   ggplot2::scale_fill_gradientn(
     colours = cmocean::cmocean(
@@ -1166,7 +1464,7 @@ p.sst_m <- visreg::visreg2d(model, xvar = "thetao", yvar = "month", scale = "res
       start = 0.1, end = 0.9, direction = 1
     )(256),
     # limits = c(0, 1),
-    name   = "Probability of\npresence"
+    name   = "Rel. Habitat\nSuitability"
   ) +
   # ggplot2::scale_fill_viridis_c(name = "Probability of\npresence", direction = 1) +
   # ggplot2::scale_y_continuous(breaks = 1:12) +
@@ -1187,14 +1485,14 @@ p.sst_m
 
 
 p.chl_m <- visreg::visreg2d(model, xvar = "chl", yvar = "month", scale = "response", plot.type = "gg",
-                            xlab = expression("chl (log(mg m"^{-3}*"))"), ylab = "month") +
+                            xlab = expression("Chl (log(mg m"^{-3}*"))"), ylab = "Month") +
   ggplot2::scale_fill_gradientn(
     colours = cmocean::cmocean(
       name = "algae", alpha = 1,
       start = 0, end = 1, direction = 1
     )(256),
     # limits = c(0, 1),
-    name   = "Probability of\npresence"
+    name   = "Rel. Habitat\nSuitability"
   ) +
   # ggplot2::scale_fill_viridis_c(name = "Probability of\npresence", direction = 1) +
   # ggplot2::scale_y_continuous(breaks = 1:12) +
@@ -1216,14 +1514,14 @@ p.chl_m
 
 
 p.uv_m <- visreg::visreg2d(model, xvar = "uv", yvar = "month", scale = "response", plot.type = "gg",
-                            xlab = expression("uv (m s"^{-1}*")"), ylab = "month") +
+                            xlab = expression("Cur_uv (m s"^{-1}*")"), ylab = "Month") +
   ggplot2::scale_fill_gradientn(
     colours = cmocean::cmocean(
       name = "speed", alpha = 1,
       start = 0, end = 1, direction = -1
     )(256),
     # limits = c(0, 1),
-    name   = "Probability of\npresence"
+    name   = "Rel. Habitat\nSuitability"
   ) +
   # ggplot2::scale_fill_viridis_c(name = "Probability of\npresence", direction = 1) +
   # ggplot2::scale_y_continuous(breaks = 1:12) +
@@ -1244,14 +1542,14 @@ p.uv_m <- visreg::visreg2d(model, xvar = "uv", yvar = "month", scale = "response
 p.uv_m
 
 p.wz_m <- visreg::visreg2d(model, xvar = "wz", yvar = "month", scale = "response", plot.type = "gg",
-                           xlab = expression("wz (m s"^{-1}*")"), ylab = "month") +
+                           xlab = expression("Wz (m s"^{-1}*")"), ylab = "Month") +
   ggplot2::scale_fill_gradientn(
     colours = cmocean::cmocean(
       name = "haline", alpha = 1,
       start = 0, end = 1, direction = 1
     )(256),
     # limits = c(0, 1),
-    name   = "Probability of\npresence"
+    name   = "Rel. Habitat\nSuitability"
   ) +
   # ggplot2::scale_fill_viridis_c(name = "Probability of\npresence", direction = 1) +
   # ggplot2::scale_y_continuous(breaks = 1:12) +
@@ -1272,14 +1570,14 @@ p.wz_m <- visreg::visreg2d(model, xvar = "wz", yvar = "month", scale = "response
 p.wz_m
 
 p.mld_m <- visreg::visreg2d(model, xvar = "mltost", yvar = "month", scale = "response", plot.type = "gg",
-                           xlab = expression("mld (m)"), ylab = "month") +
+                           xlab = expression("MLD (m)"), ylab = "Month") +
   ggplot2::scale_fill_gradientn(
     colours = cmocean::cmocean(
       name = "ice", alpha = 1,
       start = 0, end = 1, direction = 1
     )(256),
     # limits = c(0, 1),
-    name   = "Probability of\npresence"
+    name   = "Rel. Habitat\nSuitability"
   ) +
   # ggplot2::scale_fill_viridis_c(name = "Probability of\npresence", direction = 1) +
   # ggplot2::scale_y_continuous(breaks = 1:12) +
@@ -1329,6 +1627,8 @@ effects_final
 
 
 ggsave("GAMM_RepsonsePlots_Marginal_Tracking_mp_crwPA.png", plot = effects_final, path ="outputs/final_figures", scale =1, width = 18, height = 30, units = "cm", dpi = 300)
+
+ggsave("Figure_S6.png", plot = effects_final, path ="/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/", scale =1, width = 18, height = 30, units = "cm", dpi = 300)
 
 
 # External Vaildation -----------------------------------------------------
@@ -1465,7 +1765,13 @@ boyce_ext$cor
 
 
 model <- gam
-model
+model <- gam_sens.full_cc
+model <- gam_sens.full
+model <- gam_sens.simple1
+model <- gam_sens.simple2
+summary(model)
+AIC(model)
+AICc(model)
 relevant_vars <- all.vars(model$formula)[-1] # Excluding the intercept
 relevant_vars <- relevant_vars[ !(relevant_vars %in% c("k_general")) ]
 relevant_vars
@@ -1594,13 +1900,16 @@ writeRaster(monthly_means_stack, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis
 mean_climate <- terra::app(monthly_means_stack, fun = mean, na.rm = TRUE)
 mean_climate
 plot(mean_climate)
+plot(mean_climate, range = c(0,1), xlim = c(140, 170), ylim = c(-40, 0))
 
 # Save for ensemble modelling
 # writeRaster(mean_climate, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracking_GAMM_mean_rev_mp.tif", overwrite = TRUE)
 
 writeRaster(mean_climate, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracking_GAMM_mean_rev_mp_crw_PA.tif", overwrite = TRUE)
 
+writeRaster(mean_climate, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Sensitivity_test_GAMM_RandomEffect+interactions.tif", overwrite = TRUE)
 
+writeRaster(mean_climate, filename = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Sensitivity_test_GAMM_No_RandomEffect+interactions.tif", overwrite = TRUE)
 
 
 

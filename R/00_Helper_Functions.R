@@ -327,6 +327,15 @@ windSpd <- function(u, v){
 }
 
 dataDownload <- function(type, year, month = NULL, dir, varname, quiet = TRUE) {
+  
+  
+  # daily_server = "https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/daily/"
+  # monthly_server = "https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/month/"
+  
+  daily_server   <- "https://thredds.nci.org.au/thredds/fileServer/gb6/BRAN/BRAN2020/daily/"
+  monthly_server <- "https://thredds.nci.org.au/thredds/fileServer/gb6/BRAN/BRAN2020/month/"
+  
+  
   if (type %in% c("day", "month") == FALSE) {
     stop("Please provide type as 'day' or 'month'.")
   }
@@ -348,11 +357,11 @@ dataDownload <- function(type, year, month = NULL, dir, varname, quiet = TRUE) {
         month <- 1:12
         for (i in 1:length(month)) {
           if (month[i] < 10) {
-            download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/daily", varname, "_", year, "_0", month[i], ".nc"), 
+            download.file(paste0(daily_server, varname, "_", year, "_0", month[i], ".nc"), 
                           destfile = paste0(dir, "/", varname, "_", year, "_0", month[i], ".nc"), mode = 'wb', quiet = quiet)
             gc()
           } else {
-            download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/daily", varname, "_", year, "_", month[i], ".nc"), 
+            download.file(paste0(daily_server, varname, "_", year, "_", month[i], ".nc"), 
                           destfile = paste0(dir, "/", varname, "_", year, "_", month[i], ".nc"), mode = 'wb', quiet = quiet)
             gc()
           }
@@ -360,11 +369,11 @@ dataDownload <- function(type, year, month = NULL, dir, varname, quiet = TRUE) {
       } else {
         for (i in 1:length(month)) {
           if (month[i] < 10) {
-            download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/daily", varname, "_", year, "_0", month[i], ".nc"), 
+            download.file(paste0(daily_server, varname, "_", year, "_0", month[i], ".nc"), 
                           destfile = paste0(dir, "/", varname, "_", year, "_0", month[i], ".nc"), mode = 'wb', quiet = quiet)
             gc()
           } else {
-            download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/daily", varname, "_", year, "_", month[i], ".nc"), 
+            download.file(paste0(daily_server, varname, "_", year, "_", month[i], ".nc"), 
                           destfile = paste0(dir, "/", varname, "_", year, "_", month[i], ".nc"), mode = 'wb', quiet = quiet)
             gc()
           }
@@ -375,11 +384,11 @@ dataDownload <- function(type, year, month = NULL, dir, varname, quiet = TRUE) {
         month <- 1:12 # 2023 data now goes to december!
         for (i in 1:length(month)) {
           if (month[i] < 10) {
-            download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/daily", varname, "_", year, "_0", month[i], ".nc"), 
+            download.file(paste0(daily_server, varname, "_", year, "_0", month[i], ".nc"), 
                           destfile = paste0(dir, "/", varname, "_", year, "_0", month[i], ".nc"), mode = 'wb', quiet = quiet)
             gc()
           } else {
-            download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/daily", varname, "_", year, "_", month[i], ".nc"), 
+            download.file(paste0(daily_server, varname, "_", year, "_", month[i], ".nc"), 
                           destfile = paste0(dir, "/", varname, "_", year, "_", month[i], ".nc"), mode = 'wb', quiet = quiet)
             gc()
           }
@@ -387,11 +396,11 @@ dataDownload <- function(type, year, month = NULL, dir, varname, quiet = TRUE) {
       } else {
         for (i in 1:length(month)) {
           if (month[i] < 10) {
-            download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/daily", varname, "_", year, "_0", month[i], ".nc"), 
+            download.file(paste0(daily_server, varname, "_", year, "_0", month[i], ".nc"), 
                           destfile = paste0(dir, "/", varname, "_", year, "_0", month[i], ".nc"), mode = 'wb', quiet = quiet)
             gc()
           } else {
-            download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/daily", varname, "_", year, "_", month[i], ".nc"), 
+            download.file(paste0(daily_server, varname, "_", year, "_", month[i], ".nc"), 
                           destfile = paste0(dir, "/", varname, "_", year, "_", month[i], ".nc"), mode = 'wb', quiet = quiet)
             gc()
           }
@@ -405,11 +414,11 @@ dataDownload <- function(type, year, month = NULL, dir, varname, quiet = TRUE) {
       month <- 1:12
       for (i in 1:length(month)) {
         if (month[i] < 10) {
-          download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/month/", varname, "_mth_", year, "_0", month[i], ".nc"), 
+          download.file(paste0(monthly_server, varname, "_mth_", year, "_0", month[i], ".nc"), 
                         destfile = paste0(dir, "/", varname, "_", year, "_0", month[i], ".nc"), mode = 'wb', quiet = quiet)
           gc()
         } else {
-          download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/month/", varname, "_mth_", year, "_", month[i], ".nc"), 
+          download.file(paste0(monthly_server, varname, "_mth_", year, "_", month[i], ".nc"), 
                         destfile = paste0(dir, "/", varname, "_", year, "_", month[i], ".nc"), mode = 'wb', quiet = quiet)
           gc()
         }
@@ -417,11 +426,11 @@ dataDownload <- function(type, year, month = NULL, dir, varname, quiet = TRUE) {
     } else {
       for (i in 1:length(month)) {
         if (month[i] < 10) {
-          download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/month/", varname, "_mth_", year, "_0", month[i], ".nc"), 
+          download.file(paste0(monthly_server, varname, "_mth_", year, "_0", month[i], ".nc"), 
                         destfile = paste0(dir, "/", varname, "_", year, "_0", month[i], ".nc"), mode = 'wb', quiet = quiet)
           gc()
         } else {
-          download.file(paste0("https://thredds.nci.org.au/thredds/dodsC/gb6/BRAN/BRAN2020/month/", varname, "_mth_", year, "_", month[i], ".nc"), 
+          download.file(paste0(monthly_server, varname, "_mth_", year, "_", month[i], ".nc"), 
                         destfile = paste0(dir, "/", varname, "_", year, "_", month[i], ".nc"), mode = 'wb', quiet = quiet)
           gc()
         }
@@ -1995,4 +2004,66 @@ gam_cv <- function(dat,
   
   out
 }
+
+
+
+
+
+delete_old_rtmp_mac <- function(keep_today = TRUE,
+                                keep_date = Sys.Date(),
+                                dry_run = TRUE) {
+  cur <- normalizePath(tempdir(), winslash = "/", mustWork = FALSE)
+  
+  # macOS temp roots live here; /var is a symlink to /private/var
+  root <- "/private/var/folders"
+  if (!dir.exists(root)) stop("This function is intended for macOS: ", root, " not found.")
+  
+  # Find all T directories, then their Rtmp* children
+  T_dirs <- list.dirs(root, recursive = TRUE, full.names = TRUE)
+  T_dirs <- T_dirs[basename(T_dirs) == "T"]
+  
+  rtmps <- unlist(lapply(T_dirs, function(td) {
+    list.dirs(td, recursive = FALSE, full.names = TRUE)
+  }), use.names = FALSE)
+  
+  rtmps <- rtmps[grepl("/Rtmp[^/]*$", rtmps)]
+  rtmps <- unique(normalizePath(rtmps, winslash = "/", mustWork = FALSE))
+  rtmps <- rtmps[file.exists(rtmps)]
+  
+  if (!length(rtmps)) {
+    message("No Rtmp* folders found under: ", root)
+    return(invisible(NULL))
+  }
+  
+  info <- file.info(rtmps)
+  mday <- as.Date(info$mtime)
+  
+  keep <- (rtmps == cur)
+  if (isTRUE(keep_today)) keep <- keep | (mday == keep_date)
+  
+  to_delete <- rtmps[!keep]
+  
+  message("Found Rtmp folders: ", length(rtmps))
+  message("Keeping current tempdir: ", cur)
+  if (isTRUE(keep_today)) message("Keeping date: ", keep_date)
+  message("Will delete: ", length(to_delete))
+  
+  if (!length(to_delete)) {
+    message("Nothing to delete.")
+    return(invisible(list(deleted = character(), kept = rtmps[keep])))
+  }
+  
+  print(to_delete)
+  
+  if (isTRUE(dry_run)) {
+    message("dry_run=TRUE so nothing was deleted. Set dry_run=FALSE to delete.")
+    return(invisible(list(would_delete = to_delete, kept = rtmps[keep])))
+  }
+  
+  ok <- vapply(to_delete, function(p) unlink(p, recursive = TRUE, force = TRUE) == 0L, logical(1))
+  message("Deleted: ", sum(ok), " / ", length(ok), " (some may fail if in use).")
+  
+  invisible(list(deleted = to_delete[ok], failed = to_delete[!ok], kept = rtmps[keep]))
+}
+
 

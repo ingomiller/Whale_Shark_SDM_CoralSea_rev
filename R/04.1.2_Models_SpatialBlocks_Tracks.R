@@ -506,6 +506,8 @@ tracks_occ <- tracks_out |>
   dplyr::filter(PA == 1) |> 
   as.data.frame()
 
+str(tracks_occ)
+
 
 tracks_occ |> dplyr::filter(month ==10)
 

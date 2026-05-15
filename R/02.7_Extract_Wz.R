@@ -34,10 +34,7 @@ tracks <- readRDS("data/work_files/Tracks_mp_sims_30_thinned_2018_2025_bathy_dis
 
 tracks <- readRDS( "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist_sst_uv_mld_chl.rds")
 
-tracks <- readRDS( "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy_dist_sst_uv_mld_chl.rds")
 
-
-tracks <- readRDS("data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy_dist_sst_uv_mld_chl.rds")
 
 dt <- sight
 dt <- tracks
@@ -98,7 +95,7 @@ res <- extractWz(
   Y = "lat",
   datetime = "Date",
   folder_name = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Environmental_Varibales_Downloaded/Bluelink/Daily/",
-  export_path = "data/temp/wz_results_randBuf_th_final",
+  export_path = "data/temp/wz_results_sims30_final",
   max_depth = -200,
   fill_gaps = TRUE,
   buffer = 0.25, # buffer in degree
@@ -159,7 +156,7 @@ res_2 <- extractWz_CM(df = input_df_3,
                                    folder_name = "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/Copernicus/CMEMS_Global/daily/wo/",
                                    max_depth = -200,
                                    fill_gaps = TRUE, buffer = 0.25,
-                                   export_path =  "data/temp/wz_results_CM_randBuf_th_final",
+                                   export_path =  "data/temp/wz_results_CM_sims30_final",
                       keep_nc_files = TRUE)
 tictoc::toc()
 
@@ -211,10 +208,6 @@ saveRDS(track_wz, "data/work_files/Tracks_mp_sims_50_raw_2010_2025_bathy_dist_ss
 
 saveRDS(track_wz, "data/work_files/Tracks_PA_w_dynSDM_30_raw_2018_2025_final_bathy_dist_sst_uv_mld_chl_wz.rds")
 
-saveRDS(track_wz, "data/work_files/Tracks_PA_w_dynSDM_30_th_2018_2025_final_bathy_dist_sst_uv_mld_chl_wz.rds")
-
-saveRDS(track_wz, "data/work_files/Tracks_mp_RandomBuf_30_thinned_2018_2025_final_bathy_dist_sst_uv_mld_chl_wz.rds")
-
 # aslo save as processed file:
 saveRDS(sight_wz, "data/processed/Sightings_PA_w_dynSDM_100_2010_2025_extract.rds")
 
@@ -230,9 +223,5 @@ saveRDS(track_wz, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2018_2025_extra
 saveRDS(track_wz, "data/processed/Tracks_PA_w_daily_mp_dynSDM_50_2018_2025_extract.rds")
 
 saveRDS(track_wz, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_final.rds")
-
-saveRDS(track_wz, "data/processed/Tracks_PA_w_daily_mp_dynSDM_30_2019_2025_extract_th_final.rds")
-
-saveRDS(track_wz, "data/processed/Tracks_PA_mp_RandomBuf_30_thinned_2018_2025_extract_final.rds")
 
 

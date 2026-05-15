@@ -26,7 +26,7 @@ source("R/00_Helper_Functions.R")
 
 
 model_input <- readRDS("data/processed/model_input_data_processed_crwPA.rds")
-
+model_input
 model <- readRDS("models/objects/Tracks_GAMM_final_Model_mp_crwPA.rds")
 
 input_list <- monthly_stacks_lst_0.1_trans

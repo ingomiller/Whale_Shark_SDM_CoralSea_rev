@@ -935,15 +935,22 @@ unique(brt_imp$variable)
 sum_var_imp <- dplyr::bind_rows(brt_imp, max_imp, GAMM_Var_Importance_CV) |> 
   dplyr::mutate(
     variable = case_when(
-      variable == "mltost" ~ "mld",
-      variable == "thetao" ~ "sst",
+      variable == "mltost" ~ "MLD",
+      variable == "thetao" ~ "SST",
+      variable == "dist2000" ~ "Dist2000",
+      variable == "depth" ~ "Depth",
+      variable == "chl" ~ "Chl",
+      variable == "uv" ~ "Cur_uv",
+      variable == "slope" ~ "Slope",
+      variable == "wz" ~ "Wz",
+      variable == "month" ~ "Month",
       TRUE ~ variable  # Keep all other values unchanged
     ),
     Group = dplyr::case_when(
-      variable == "month" ~ "temporal",
-      variable == "depth" ~ "static",
-      variable == "slope" ~ "static",
-      variable == "dist2000" ~ "static",
+      variable == "Month" ~ "temporal",
+      variable == "Depth" ~ "static",
+      variable == "Slope" ~ "static",
+      variable == "Dist2000" ~ "static",
       TRUE ~ "dynamic"
     )
   )
@@ -959,7 +966,7 @@ sum_var <- sum_var_imp |>
                 ymax = importance + sd) |>   # Scale within each facet
   dplyr::ungroup() |> 
   dplyr::mutate(algorithm = factor(algorithm, levels = c("BRT", "MaxEnt", "GAMM")),
-                variable = factor(variable, levels = c("depth", "slope", "dist2000", "sst", "chl", "uv", "wz", "mld", "month")))
+                variable = factor(variable, levels = c("Depth", "Slope", "Dist2000", "SST", "Chl", "Cur_uv", "Wz", "MLD", "Month")))
 
 sum_var
 
@@ -994,11 +1001,13 @@ rel_inf_plot
 ggsave("RelInfluence_final_models.png", plot = rel_inf_plot, path ="outputs/final_figures/", scale =1, width = 17, height = 12, units = "cm", dpi = 300)
 
 
-ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/Figure_S__RelImp_models.png", plot = rel_inf_plot, scale =1, width = 17, height = 12, units = "cm", dpi = 600)
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Figure_S__RelImp_models.png", plot = rel_inf_plot, scale =1, width = 17, height = 12, units = "cm", dpi = 600)
 
-ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/Figure_S__RelImp_models.pdf", plot = rel_inf_plot, scale =1, width = 17, height = 12, units = "cm", dpi = 600, device = "pdf")
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Figure_S__RelImp_models.pdf", plot = rel_inf_plot, scale =1, width = 17, height = 12, units = "cm", dpi = 600, device = "pdf")
 
-ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/Figure_S__RelImp_models.eps", plot = rel_inf_plot, scale =1, width = 17, height = 12, units = "cm", dpi = 600)
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Figure_S__RelImp_models.eps", plot = rel_inf_plot, scale =1, width = 17, height = 12, units = "cm", dpi = 600)
+
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Figure_S__RelImp_models.tif", plot = rel_inf_plot, scale =1, width = 17, height = 12, units = "cm", dpi = 600)
 
 
 
@@ -1139,5 +1148,88 @@ ggplot2::ggsave(
   bg = "transparent",
   scale =1
 )
+
+
+
+
+# Sensitivity Test for Random effects in GAMMs ----------------------------
+
+no_random <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Sensitivity_test_GAMM_No_RandomEffect+interactions.tif")
+
+random <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/Sensitivity_test_GAMM_RandomEffect+interactions.tif")
+
+
+sens_test_r <- c(no_random, random)
+
+
+names(sens_test_r ) <- c("GAM", "GAMM")
+
+
+plot(sens_test_r, range = c(0,1), xlim = c(140, 170), ylim = c(-40, 0))
+
+sens_test_r
+
+world <- ne_countries(scale = 10, returnclass = "sf")
+
+P_random_test <- ggplot2::ggplot() +
+ 
+  tidyterra::geom_spatraster(data = sens_test_r) +
+  
+  facet_wrap(~lyr) +
+  
+  ggplot2::geom_sf(data = world, fill = "grey50", colour = "grey20", linewidth = 0.1) +
+  
+  scale_fill_gradientn(
+    colours = viridisLite::turbo(n = 100, direction = 1, begin = 0, end = 1),
+    limits  = c(0, 1),
+    breaks  = seq(0, 1, by = 0.2),
+    labels  = scales::number_format(accuracy = 0.1),
+    oob     = scales::squish,
+    name    = "Rel. Habitat\nSuitability",
+    guide   = guide_colorbar(
+      frame.colour = "black",
+      ticks.colour = "black",
+      barheight = grid::unit(10, "pt"),
+      barwidth  = grid::unit(100,  "pt")
+    )
+  ) +
+  
+  labs(fill = "Rel. Habitat\nSuitability", x = "Longitude", y = "Latitude", title = "") +
+  
+  scale_y_continuous(limits = c(-40, 0), breaks = seq(-35, -5, by = 5), expand = c(0,0)) +
+  scale_x_continuous(limits = c(140, 170), breaks = seq(145, 165, by = 5),expand = c(0,0)) +
+  
+  
+  theme(
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    # legend.key.width = rel(0.25),
+    # legend.key.height = rel(0.75),
+    legend.title = element_text(size=8),
+    legend.text = element_text(size =8),
+    axis.text = element_text(size = 8),
+    #axis.title = element_text(size = 10),
+    axis.title = element_blank(),
+    panel.border = element_rect(fill = NA, colour = "black", linewidth = 1),
+    panel.background = element_blank(),
+    strip.text.x = element_text(size = 10, color = "black", face = "bold"),
+    strip.background = element_blank(),
+    plot.margin = unit(c(0, 0, 0, 0), "cm")) 
+
+
+P_random_test
+
+
+ggsave("Sensitivity_GAM_vs_GAMM.png", plot = P_random_test, path ="outputs/final_figures/", scale =1, width = 18, height = 15, units = "cm", dpi = 600)
+
+
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Sensitivity_GAM_vs_GAMM.png", plot = P_random_test, scale =1, width = 18, height = 15, units = "cm", dpi = 600)
+
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Sensitivity_GAM_vs_GAMM.pdf", plot = P_random_test, scale =1, width = 18, height = 15, units = "cm", dpi = 600, device = "pdf")
+
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Sensitivity_GAM_vs_GAMM.eps", plot = P_random_test, scale =1, width = 18, height = 15, units = "cm", dpi = 600)
+
+ggsave("/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_2/Sensitivity_GAM_vs_GAMM.tiff", plot = P_random_test, scale =1, width = 18, height = 15, units = "cm", dpi = 600)
+
 
 

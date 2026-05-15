@@ -70,7 +70,7 @@ season_4_max <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks
 
 season_2_max <- terra::rast("/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_Maxent_seasons2_means_rev_mp_crwPA.tif")
 
-names(months_all_brt)
+names(months_all_max)
 
 ### GAMM Models
 
@@ -264,6 +264,7 @@ mean_brt
 
 models_mean <- c(mean_gam, mean_max, mean_brt)
 names(models_mean) <- c("GAM", "MaxEnt", "BRT")
+models_mean
 
 plot(models_mean, range = c(0,1))
 
@@ -406,6 +407,17 @@ names(monthly_ensemble) <- base::month.abb
 monthly_ensemble
 
 plot(monthly_ensemble, range = c(0,1))
+
+
+
+
+terra::writeRaster(mean_climate_ensemble, "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_mp_crwPA_Ensemble_mean_climate.tif")
+
+terra::writeRaster(monthly_ensemble, "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_mp_crwPA_Ensemble_monthly_mean_climate.tif")
+
+terra::writeRaster(season_2_ensemble, "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_mp_crwPA_Ensemble_seasonal2_mean_climate.tif")
+
+terra::writeRaster(quartals_ensemble, "/Volumes/Ingo_PhD/PhD_Data_Analysis/PhD_WhaleSharks_SDMs_Enviro_Layers/Chapter2/SDM_Outputs_Rev/SDM_whalesharks_Tracks_mp_crwPA_Ensemble_seasonal4_quartals_mean_climate.tif")
 
 
 
@@ -715,6 +727,7 @@ P1 <- ggplot2::ggplot() +
 P1
 
 mess_extrap_df
+mess_mean
 
 P1.m <- P1 +
   # adding MESS map
@@ -745,9 +758,10 @@ ggsave("HSM_Map_Mean_Climate_Ensemble.png", plot = P1.m, path = "outputs/figures
 
 path = "/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/"
 
-ggsave("Figure_3.png", plot = P1.m, path = path, scale =1, width = 14, height = 17, units = "cm", dpi = 600)
-ggsave("Figure_3.pdf", plot = P1.m, path = path, scale =1, width = 14, height = 17, units = "cm", dpi = 600, device = "pdf")
-ggsave("Figure_3.eps", plot = P1.m, path = path, scale =1, width = 14, height = 17, units = "cm", dpi = 600)
+ggsave("Figure_4.png", plot = P1.m, path = path, scale =1, width = 14, height = 17, units = "cm", dpi = 600)
+ggsave("Figure_4.pdf", plot = P1.m, path = path, scale =1, width = 14, height = 17, units = "cm", dpi = 600, device = "pdf")
+ggsave("Figure_4.eps", plot = P1.m, path = path, scale =1, width = 14, height = 17, units = "cm", dpi = 600)
+ggsave("Figure_4.tif", plot = P1.m, path = path, scale =1, width = 14, height = 17, units = "cm", dpi = 600)
 
 
 
@@ -998,9 +1012,10 @@ ggsave("HSM_Map_2seasons_Climate_Ensemble.png", plot = P2.m, path = "outputs/fig
 
 path = "/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/"
 
-ggsave("Figure_4.png", plot = P2.m, path = path, scale =1, width = 18, height = 15, units = "cm", dpi = 600)
-ggsave("Figure_4.pdf", plot = P2.m, path = path, scale =1, width = 18, height = 15, units = "cm", dpi = 600, device = "pdf")
-ggsave("Figure_4.eps", plot = P2.m, path = path, scale =1, width = 18, height = 15, units = "cm", dpi = 600)
+ggsave("Figure_5.png", plot = P2.m, path = path, scale =1, width = 18, height = 15, units = "cm", dpi = 600)
+ggsave("Figure_5.pdf", plot = P2.m, path = path, scale =1, width = 18, height = 15, units = "cm", dpi = 600, device = "pdf")
+ggsave("Figure_5.eps", plot = P2.m, path = path, scale =1, width = 18, height = 15, units = "cm", dpi = 600)
+ggsave("Figure_5.tif", plot = P2.m, path = path, scale =1, width = 18, height = 15, units = "cm", dpi = 600)
 
 
 
@@ -1397,15 +1412,16 @@ P3.m <- P3 +
 P3.m
 
 
-ggsave("HSM_Map_4seasons_Climate_Ensemble.png", plot = P3.m, path = "outputs/figures", scale =1, width = 18, height = 10, units = "cm", dpi = 600)
+ggsave("HSM_Map_4seasons_Climate_Ensemble.png", plot = P3.m, path = "outputs/figures", scale =1, width = 18, height = 21, units = "cm", dpi = 600)
 
 
 
 path = "/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/"
 
-ggsave("Figure_5.png", plot = P3.m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600)
-ggsave("Figure_5.pdf", plot = P3.m, path = path, scale =1, width = 18, height = 15, units = "cm", dpi = 600, device = "pdf")
-ggsave("Figure_5.eps", plot = P3.m, path = path, scale =1, width = 18, height = 15, units = "cm", dpi = 600)
+ggsave("Figure_6.png", plot = P3.m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600)
+ggsave("Figure_6.pdf", plot = P3.m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600, device = "pdf")
+ggsave("Figure_6.eps", plot = P3.m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600)
+ggsave("Figure_6.tif", plot = P3.m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600)
 
 
 
@@ -1547,8 +1563,15 @@ P_monthly
 
 
 mess_mean_calendar_backup <- mess_mean_calendar
+mess_mean_calendar_backup
 mess_mean_calendar <- mess_mean_calendar_backup
+mess_mean_calendar
+
+terra::global(mess_mean_calendar, fun = "range", na.rm = TRUE)
+terra::freq(mess_mean_calendar, digits = 10)
+
 names(mess_mean_calendar) <- base::month.abb  # "Jan", ..., "Dec" if not already
+
 
 mess_mean_calendar <- terra::ifel(mess_mean_calendar < 0, 1, NA_real_)
 mess_mean_calendar
@@ -1565,7 +1588,7 @@ monthly_mess_extrap_df <- mess_mean_calendar|>
   dplyr::mutate(
     lyr = factor(lyr, levels = base::month.abb)
   )
-monthly_mess_extrap_df 
+
 
 # Create contours at level 0 for each calendar month
 cont_list <- lapply(base::month.abb, function(m) {
@@ -1611,8 +1634,9 @@ ggsave("HSM_Map_monthly_Climate_Ensemble.png", plot = P_monthly_m, path = "outpu
 path = "/Users/ingo/Library/CloudStorage/OneDrive-JamesCookUniversity/02_PhD/06_Chapters/DataChapters/Chapter2_WhaleSharks_Mantas/00_Final_Manuscript_Files/Revision_1/"
 
 ggsave("Figure_S9.png", plot = P_monthly_m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600)
-ggsave("Figure_6.pdf", plot = P_monthly_m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600, device = "pdf")
-ggsave("Figure_6.eps", plot = P_monthly_m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600)
+ggsave("Figure_S9.pdf", plot = P_monthly_m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600, device = "pdf")
+ggsave("Figure_S9.eps", plot = P_monthly_m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600)
+ggsave("Figure_S9.tif", plot = P_monthly_m, path = path, scale =1, width = 18, height = 21, units = "cm", dpi = 600)
 
 
 

@@ -207,6 +207,9 @@ terra::plot(terra::vect(sims_a_clip[, c("x", "y")],
 # Biases ------------------------------------------------------------------
 ## we use dynamic SDM to deal spatiotemporal biases 
 
+
+str(track_p)
+
 track_p_chck <- dynamicSDM::spatiotemp_check(
   track_p,
   na.handle = "exclude", # NAs in coordinates or dates 
